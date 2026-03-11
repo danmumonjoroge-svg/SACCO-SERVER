@@ -36,5 +36,16 @@ def get_members():
     
     return jsonify([])
 
+@app.route("/total_deposit/<member_id>")
+def total_deposit(member_id):
+    # Fetch all deposits for this member
+    response = supabase.table("savings_transactions").select("amount").eq("member_id", member_id).execute()
+    
+    # Sum the amounts
+    total = sum([float(row["amount"]) for row in response.data])
+    
+    # Return as JSON
+    return jsonify({"member_id": member_id, "total_deposit": total})
+
 if __name__ == "__main__":
     app.run()
