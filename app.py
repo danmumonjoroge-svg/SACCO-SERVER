@@ -207,5 +207,41 @@ def accounts():
 # -------------------------------
 # RUN SERVER
 # -------------------------------
+@app.route("/statement/<member_id>")
+def member_statement(member_id):
+
+    # Member info
+    member = supabase.table("members").select("*").eq("id", member_id).execute().data
+
+    # Savings transactions
+    savings = supabase.table("savings_transactions").select("*").eq("member_id", member_id).execute().data
+
+    # Loans
+    loans = supabase.table("loans").select("*").eq("member_id", member_id).execute().data
+
+    # Repayments
+    repayments = supabase.table("loan_repayment").select("*").eq("member_id", member_id).execute().data
+
+
+    # Calculate totals
+    total_deposits = sum(float(row["amount"]) for row in savings)
+
+    total_loans = sum(float(row["principal"]) for row in loans) if loans else 0
+
+    total_principal_paid = sum(float(row["principal"]) for row in repayments) if repayments else 0
+
+    total_interest_paid = sum(float(row["interest"]) for row in repayments) if repayments else 0
+
+
+    return jsonify({
+        "member": member,
+        "total_deposits": total_deposits,
+        "total_loans": total_loans,
+        "principal_paid": total_principal_paid,
+        "interest_paid": total_interest_paid,
+        "savings_transactions": savings,
+        "loans": loans,
+        "repayments": repayments
+    })
 if __name__ == "__main__":
     app.run()
