@@ -234,6 +234,19 @@ def accounts():
 
 # -------------------------------
 # RUN SERVER
-# -------------------------------
+# -@app.route("/loan_repayments/<loan_id>")
+def loan_repayments(loan_id):
+
+    try:
+        data = supabase.table("loan_repayment") \
+            .select("*") \
+            .eq("loan_id", loan_id) \
+            .execute()
+
+        return jsonify(data.data)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500------------------------------
+
 if __name__ == "__main__":
     app.run()
