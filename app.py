@@ -108,7 +108,7 @@ def loan_application_member(member_id):
 @app.route("/loan_repayments/<loan_id>")
 def loan_repayments(loan_id):
     try:
-        return jsonify(supabase.table("loan_repayment").select("*").eq("loan_id", loan_id).execute().data)
+        return jsonify(supabase.table("loan_repayments").select("*").eq("loan_id", loan_id).execute().data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -122,7 +122,7 @@ def repay_loan():
         interest = float(data.get("interest", 0))
         timestamp = datetime.utcnow().isoformat()
 
-        repayment = supabase.table("loan_repayment").insert({
+        repayment = supabase.table("loan_repayments").insert({
             "loan_id": loan_id,
             "member_id": member_id,
             "principal": principal,
@@ -131,8 +131,8 @@ def repay_loan():
         }).execute()
 
         # Optional ledger posting
-        post_to_ledger("1000", "1200", principal, "loan_repayment", repayment.data[0]["id"])
-        post_to_ledger("1000", "3000", interest, "loan_repayment", repayment.data[0]["id"])
+        post_to_ledger("1000", "1200", principal, "loan_repayments", repayment.data[0]["id"])
+        post_to_ledger("1000", "3000", interest, "loan_repayments", repayment.data[0]["id"])
 
         return jsonify({"status": "success", "repayment": repayment.data})
     except Exception as e:
@@ -146,7 +146,7 @@ def member_statement(member_id):
     try:
         savings = supabase.table("savings_transactions").select("*").eq("member_id", member_id).execute().data
         loans = supabase.table("loans").select("*").eq("member_id", member_id).execute().data
-        repayments = supabase.table("loan_repayment").select("*").eq("member_id", member_id).execute().data
+        repayments = supabase.table("loan_repayments").select("*").eq("member_id", member_id).execute().data
         return jsonify({
             "member_id": member_id,
             "savings": savings,
