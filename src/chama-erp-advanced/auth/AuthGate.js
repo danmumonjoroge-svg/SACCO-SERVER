@@ -14,7 +14,7 @@ import "./AuthGate.css";
 //
 //   <ChamaProvider>
 //     <AuthGate>
-//       <ChamaRouter />   // or ChamaDashboard, whatever your app root uses
+//       <ChamaDashboardAdvanced />
 //     </AuthGate>
 //   </ChamaProvider>
 //
