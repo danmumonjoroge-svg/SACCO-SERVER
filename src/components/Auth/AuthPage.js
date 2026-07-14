@@ -240,7 +240,7 @@ export default function AuthPage() {
           data: {
             member_id:  member.id,
             member_no:  member.member_no,
-            full_name:  member.name || "",
+            name:  member.name || "",
           },
         },
       });

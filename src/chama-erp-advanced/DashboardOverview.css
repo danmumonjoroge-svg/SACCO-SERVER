@@ -1,0 +1,24 @@
+.dov-loading { display: flex; justify-content: center; padding: 60px 0; color: var(--ink-soft, #4c6058); }
+
+.dov-header { margin-bottom: 18px; }
+.dov-header h2 { margin: 0; font-size: 1.15rem; color: var(--ink, #14231d); }
+.dov-header p { margin: 4px 0 0; font-size: 0.82rem; color: var(--ink-soft, #4c6058); }
+
+.dov-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+
+.dov-card {
+  display: flex; align-items: flex-start; gap: 12px; background: #fff; border: 1px solid var(--line, #dbe8e0);
+  border-radius: 14px; padding: 16px; border-left: 3px solid var(--brand, #0d5c3f);
+}
+.dov-card.gold { border-left-color: var(--gold, #c8922f); }
+.dov-card.warn { border-left-color: #c8922f; background: #fffbeb; }
+
+.dov-card-icon {
+  display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 9px;
+  background: var(--brand-tint, #e3f2ea); color: var(--brand, #0d5c3f); flex-shrink: 0;
+}
+.dov-card.gold .dov-card-icon { background: #fdf3e2; color: var(--gold-dark, #a8781f); }
+
+.dov-card-label { margin: 0; font-size: 0.72rem; color: var(--ink-soft, #4c6058); text-transform: uppercase; letter-spacing: 0.02em; }
+.dov-card-value { margin: 3px 0 0; font-size: 1.15rem; font-weight: 700; color: var(--ink, #14231d); }
+.dov-card-sub { margin: 2px 0 0; font-size: 0.7rem; color: var(--ink-soft, #4c6058); }

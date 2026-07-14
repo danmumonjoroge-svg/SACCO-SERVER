@@ -71,7 +71,7 @@ export default function ChamaStatements() {
       <h2>📄 Monthly Statement</h2>
 
       <p style={{ opacity: 0.6 }}>
-        Member: {member?.full_name || member?.phone}
+        Member: {member?.name || member?.phone}
       </p>
 
       {/* FILTER */}

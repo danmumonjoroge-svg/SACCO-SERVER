@@ -1,0 +1,34 @@
+.cse-wrapper {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at top left, rgba(200,146,47,0.12), transparent 45%), var(--brand-darker, #072a1e);
+  padding: 20px;
+}
+
+.cse-card { width: 440px; max-width: 100%; background: #fff; border-radius: 18px; padding: 28px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
+
+.cse-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+.cse-header h1 { margin: 0; font-size: 1.1rem; color: var(--brand-dark, #0a3f2c); }
+.cse-header p { margin: 4px 0 0; font-size: 0.78rem; color: var(--ink-soft, #4c6058); }
+.cse-logout { display: flex; align-items: center; gap: 5px; background: none; border: none; color: var(--ink-soft, #4c6058); font-size: 0.76rem; cursor: pointer; }
+
+.cse-list { display: flex; flex-direction: column; gap: 8px; }
+
+.cse-item {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  border: 1px solid var(--line, #dbe8e0); background: #fff; border-radius: 12px; padding: 12px 14px; cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.cse-item:hover:not(:disabled) { border-color: var(--brand, #0d5c3f); background: var(--brand-tint, #e3f2ea); }
+.cse-item.blocked { opacity: 0.6; cursor: not-allowed; }
+
+.cse-item-icon {
+  display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 9px;
+  background: var(--brand-tint, #e3f2ea); color: var(--brand, #0d5c3f); flex-shrink: 0;
+}
+
+.cse-item-body { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.cse-item-body strong { font-size: 0.88rem; color: var(--ink, #14231d); }
+.cse-item-body small { font-size: 0.72rem; color: var(--ink-soft, #4c6058); text-transform: capitalize; }
+
+.cse-item-arrow { color: var(--ink-soft, #4c6058); flex-shrink: 0; }
+.cse-item-blocked { display: flex; align-items: center; gap: 4px; font-size: 0.68rem; font-weight: 700; color: #b91c1c; flex-shrink: 0; white-space: nowrap; }

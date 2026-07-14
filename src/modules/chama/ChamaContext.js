@@ -1,74 +1,159 @@
-import React, { createContext, useContext, useState, useMemo } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useMemo,
+} from "react";
 
-const ChamaContext = createContext();
+export const ChamaContext = createContext(null);
 
 export function ChamaProvider({ children }) {
-  const [chama, setChama] = useState(() => JSON.parse(localStorage.getItem("chama")));
-  const [member, setMember] = useState(() => JSON.parse(localStorage.getItem("chama_member")));
+  const [chama, setChama] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("chama")) || null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [member, setMember] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("chama_member")) || null;
+    } catch {
+      return null;
+    }
+  });
+
   const [loading, setLoading] = useState(false);
 
-  // 1. Unified Authentication
+  // Authentication
   const login = ({ chamaData, memberData }) => {
     setChama(chamaData);
     setMember(memberData);
-    localStorage.setItem("chama", JSON.stringify(chamaData));
-    localStorage.setItem("chama_member", JSON.stringify(memberData));
+
+    localStorage.setItem(
+      "chama",
+      JSON.stringify(chamaData)
+    );
+
+    localStorage.setItem(
+      "chama_member",
+      JSON.stringify(memberData)
+    );
   };
 
   const logout = () => {
     setChama(null);
     setMember(null);
-    localStorage.clear();
+
+    localStorage.removeItem("chama");
+    localStorage.removeItem("chama_member");
+    localStorage.removeItem("auth_token");
   };
 
-  // 2. Advanced Role Authorization Helper
+  // Authorization
   const hasRole = (roles) => {
-    if (!member) return false;
-    // Admin/Chairman overrides everything
-    if (member.role === 'chairman') return true; 
-    return Array.isArray(roles) ? roles.includes(member.role) : member.role === roles;
+    if (!member?.role) return false;
+
+    if (
+      member.role?.toLowerCase() === "chairman" ||
+      member.role?.toLowerCase() === "admin"
+    ) {
+      return true;
+    }
+
+    if (Array.isArray(roles)) {
+      return roles.includes(member.role);
+    }
+
+    return member.role === roles;
   };
 
-  // 3. API Wrapper: Automatically injects auth headers and error handling
-  const api = useMemo(() => ({
-    request: async (endpoint, options = {}) => {
-      const token = localStorage.getItem("auth_token"); // Assuming you store a JWT
-      const headers = {
-        'Content-Type': 'application/json',
-        'x-chama-no': chama?.chama_no,
-        'x-member-no': member?.member_no,
-        ...(token && { 'Authorization': `Bearer ${token}` })
-      };
+  // API helper
+  const api = useMemo(
+    () => ({
+      request: async (
+        endpoint,
+        options = {}
+      ) => {
+        const token =
+          localStorage.getItem("auth_token");
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL}${endpoint}`, {
-        ...options,
-        headers: { ...headers, ...options.headers }
-      });
+        const headers = {
+          "Content-Type": "application/json",
+          "x-chama-no": chama?.chama_no || "",
+          "x-member-no": member?.member_no || "",
+          ...(token && {
+            Authorization: `Bearer ${token}`,
+          }),
+        };
 
-      if (!response.ok) throw new Error('API Request Failed');
-      return response.json();
-    }
-  }), [chama, member]);
+        const response = await fetch(
+          `${process.env.REACT_APP_API_URL}${endpoint}`,
+          {
+            ...options,
+            headers: {
+              ...headers,
+              ...options.headers,
+            },
+          }
+        );
 
-  // 4. Global State Helper
+        if (!response.ok) {
+          throw new Error(
+            `API Error ${response.status}`
+          );
+        }
+
+        return response.json();
+      },
+    }),
+    [chama, member]
+  );
+
   const refreshMemberData = async () => {
-    if (!member) return;
-    const updated = await api.request(`/members/${member.id}`);
-    setMember(updated);
-    localStorage.setItem("chama_member", JSON.stringify(updated));
+    if (!member?.id) return;
+
+    try {
+      const updated = await api.request(
+        `/members/${member.id}`
+      );
+
+      setMember(updated);
+
+      localStorage.setItem(
+        "chama_member",
+        JSON.stringify(updated)
+      );
+    } catch (error) {
+      console.error(
+        "Refresh member failed:",
+        error
+      );
+    }
+  };
+
+  const value = {
+    chama,
+    member,
+    loading,
+    setLoading,
+
+    login,
+    logout,
+
+    hasRole,
+
+    api,
+
+    refreshMemberData,
+
+    setChama,
+    setMember,
   };
 
   return (
-    <ChamaContext.Provider value={{ 
-      chama, 
-      member, 
-      login, 
-      logout, 
-      hasRole, 
-      api, 
-      refreshMemberData,
-      loading 
-    }}>
+    <ChamaContext.Provider value={value}>
       {children}
     </ChamaContext.Provider>
   );
@@ -76,6 +161,14 @@ export function ChamaProvider({ children }) {
 
 export function useChama() {
   const context = useContext(ChamaContext);
-  if (!context) throw new Error("useChama must be used within ChamaProvider");
+
+  if (!context) {
+    throw new Error(
+      "useChama must be used inside ChamaProvider"
+    );
+  }
+
   return context;
 }
+
+export default ChamaContext;

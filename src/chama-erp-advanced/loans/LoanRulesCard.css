@@ -1,0 +1,237 @@
+.lrc-card {
+  background: var(--paper-raised, #fff);
+  border: 1px solid var(--line, #dbe8e0);
+  border-radius: 16px;
+  padding: 20px;
+  max-width: 720px;
+}
+
+.lrc-locked {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-soft, #4c6058);
+  font-size: 0.9rem;
+  padding: 18px;
+}
+
+.lrc-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.lrc-head-title {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.lrc-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--brand-tint, #e3f2ea);
+  color: var(--brand, #0d5c3f);
+  flex-shrink: 0;
+}
+
+.lrc-head-title h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--ink, #14231d);
+}
+
+.lrc-head-title p {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  color: var(--ink-soft, #4c6058);
+}
+
+.lrc-saved {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--brand, #0d5c3f);
+  font-weight: 600;
+}
+
+.lrc-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-soft, #4c6058);
+  padding: 20px 0;
+  font-size: 0.85rem;
+}
+
+.lrc-error {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.8rem;
+  margin-bottom: 14px;
+}
+
+.lrc-section {
+  border-top: 1px solid var(--line, #dbe8e0);
+  padding: 16px 0;
+}
+
+.lrc-section:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.lrc-section h4 {
+  margin: 0 0 4px;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--gold-dark, #a8781f);
+}
+
+.lrc-hint {
+  margin: 4px 0 12px;
+  font-size: 0.8rem;
+  color: var(--ink-soft, #4c6058);
+}
+
+.lrc-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.lrc-span-2 {
+  grid-column: 1 / -1;
+}
+
+.lrc-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink, #14231d);
+}
+
+.lrc-grid label.lrc-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.lrc-grid input[type="number"],
+.lrc-grid input[type="text"],
+.lrc-grid select,
+.lrc-grid textarea {
+  border: 1px solid var(--line, #dbe8e0);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--ink, #14231d);
+  background: #fff;
+}
+
+.lrc-grid textarea {
+  min-height: 64px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.lrc-grid small {
+  font-weight: 400;
+  color: var(--ink-soft, #4c6058);
+  font-size: 0.7rem;
+}
+
+.lrc-role-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.lrc-chip {
+  border: 1px solid var(--line, #dbe8e0);
+  background: #fff;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: var(--ink-soft, #4c6058);
+  transition: all 0.15s ease;
+}
+
+.lrc-chip.active {
+  background: var(--brand, #0d5c3f);
+  border-color: var(--brand, #0d5c3f);
+  color: #fff;
+  font-weight: 600;
+}
+
+.lrc-chain-preview {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  background: var(--brand-tint, #e3f2ea);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.lrc-chain-step {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--brand-dark, #0a3f2c);
+}
+
+.lrc-chain-arrow {
+  color: var(--gold, #c8922f);
+  font-weight: 700;
+}
+
+.lrc-save-btn {
+  margin-top: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--brand, #0d5c3f);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lrc-save-btn:hover:not(:disabled) {
+  background: var(--brand-dark, #0a3f2c);
+}
+
+.lrc-save-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spin {
+  animation: lrc-spin 0.8s linear infinite;
+}
+
+@keyframes lrc-spin {
+  to { transform: rotate(360deg); }
+}

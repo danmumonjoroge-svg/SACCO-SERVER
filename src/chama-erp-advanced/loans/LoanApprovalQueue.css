@@ -1,0 +1,72 @@
+.laq-locked {
+  display: flex; align-items: center; gap: 10px; color: var(--ink-soft, #4c6058);
+  font-size: 0.9rem; padding: 24px; background: #fff; border-radius: 14px; border: 1px solid var(--line, #dbe8e0);
+}
+
+.laq-header { margin-bottom: 16px; }
+.laq-header h2 { margin: 0; font-size: 1.1rem; color: var(--ink, #14231d); }
+.laq-header p { margin: 4px 0 0; font-size: 0.8rem; color: var(--ink-soft, #4c6058); }
+.laq-header strong { color: var(--brand, #0d5c3f); }
+
+.laq-loading, .laq-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 50px 0; color: var(--ink-soft, #4c6058);
+}
+
+.laq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+
+.laq-card { background: #fff; border: 1px solid var(--line, #dbe8e0); border-radius: 14px; padding: 16px; }
+.laq-card-top { display: flex; justify-content: space-between; align-items: baseline; }
+.laq-card-top h3 { margin: 0; font-size: 0.95rem; color: var(--ink, #14231d); }
+.laq-card-top span { font-weight: 700; color: var(--brand, #0d5c3f); }
+
+.laq-purpose { margin: 6px 0 2px; font-size: 0.82rem; color: var(--ink-soft, #4c6058); }
+.laq-terms { margin: 0 0 10px; font-size: 0.76rem; color: var(--ink-soft, #4c6058); }
+
+.laq-chain { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.laq-chain-item {
+  display: flex; align-items: center; gap: 5px; font-size: 0.7rem; text-transform: capitalize;
+  padding: 4px 9px; border-radius: 999px; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;
+}
+.laq-chain-item small { font-weight: 600; opacity: 0.8; }
+.laq-chain-item.approve { background: var(--brand-tint, #e3f2ea); color: var(--brand-dark, #0a3f2c); border-color: var(--brand, #0d5c3f); }
+.laq-chain-item.reject { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+
+.laq-guarantors { font-size: 0.74rem; color: var(--ink-soft, #4c6058); margin-bottom: 10px; }
+
+.laq-actions { display: flex; gap: 8px; }
+.laq-waiting-note { font-size: 0.76rem; color: var(--ink-soft, #4c6058); font-style: italic; margin: 0; }
+
+.laq-approve, .laq-reject {
+  display: inline-flex; align-items: center; gap: 6px; border: none; border-radius: 9px;
+  padding: 8px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; flex: 1; justify-content: center;
+}
+.laq-approve { background: var(--brand, #0d5c3f); color: #fff; }
+.laq-approve:hover:not(:disabled) { background: var(--brand-dark, #0a3f2c); }
+.laq-reject { background: #fee2e2; color: #991b1b; }
+.laq-reject:hover:not(:disabled) { background: #fecaca; }
+.laq-approve:disabled, .laq-reject:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.laq-modal-overlay {
+  position: fixed; inset: 0; background: rgba(7,42,30,0.5); display: flex; align-items: center; justify-content: center; z-index: 999;
+}
+.laq-modal { background: #fff; border-radius: 16px; padding: 20px; width: 420px; max-width: 92%; }
+.laq-modal-head { display: flex; justify-content: space-between; align-items: center; }
+.laq-modal-head h3 { margin: 0; font-size: 1rem; }
+.laq-modal-head button { background: none; border: none; cursor: pointer; color: var(--ink-soft, #4c6058); }
+.laq-modal-hint { font-size: 0.82rem; color: var(--ink-soft, #4c6058); margin: 10px 0 12px; }
+.laq-modal textarea {
+  width: 100%; min-height: 70px; border: 1px solid var(--line, #dbe8e0); border-radius: 9px;
+  padding: 9px; font-family: inherit; font-size: 0.84rem; resize: vertical;
+}
+.laq-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.laq-cancel { background: none; border: 1px solid var(--line, #dbe8e0); border-radius: 9px; padding: 8px 14px; cursor: pointer; font-size: 0.8rem; }
+
+.laq-toast {
+  position: fixed; bottom: 20px; right: 20px; display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px; border-radius: 10px; font-size: 0.82rem; box-shadow: 0 8px 24px rgba(0,0,0,0.2); z-index: 999; color: #fff;
+}
+.laq-toast.success { background: var(--brand-dark, #0a3f2c); }
+.laq-toast.error { background: #b91c1c; }
+
+.spin { animation: laq-spin 0.8s linear infinite; }
+@keyframes laq-spin { to { transform: rotate(360deg); } }

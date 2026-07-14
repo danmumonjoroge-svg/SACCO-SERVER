@@ -1,113 +1,105 @@
+/* ── Gold/Green theme, matches Welfareofficerdashboard.css tokens ── */
+.welfare-module { background: #0f1f16; color: #f3f0e6; min-height: 100vh; padding: 20px; font-family: 'Inter', system-ui, sans-serif; }
 
-.welfare-container {
-  padding: 16px;
-  background: #f8fafc;
+.welfare-tabs-header { display: flex; gap: 6px; background: #17301f; border: 1px solid #2c4a35; border-radius: 14px; padding: 5px; margin-bottom: 20px; overflow-x: auto; }
+.welfare-tabs-header button {
+  display: flex; align-items: center; gap: 6px; flex: 1; justify-content: center;
+  background: transparent; border: none; color: #b9c4b8; padding: 10px 14px;
+  border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
 }
-
-/* HEADER */
-.welfare-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 14px;
+.welfare-tabs-header button.active {
+  background: linear-gradient(135deg, rgba(212,169,79,0.2), rgba(52,211,153,0.15));
+  color: #f0c96b;
 }
+.welfare-tab-content { animation: wov-fade 0.2s ease; }
+@keyframes wov-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
-.welfare-title {
-  font-size: 18px;
-  font-weight: 700;
-  display: flex;
-  gap: 8px;
-  align-items: center;
+/* ── WelfareOverview ── */
+.wov-spinner, .wov-mini-spinner { color: #7f9184; text-align: center; padding: 10px 0; font-size: 13px; }
+.wov-empty { text-align: center; padding: 48px 16px; color: #b9c4b8; }
+.wov-empty-icon { font-size: 34px; display: block; margin-bottom: 10px; }
+.wov-empty-title { font-weight: 700; color: #f3f0e6; margin: 0; }
+.wov-empty-sub { font-size: 13px; color: #7f9184; margin: 6px 0 0; }
+
+.wov-controls { margin-bottom: 16px; }
+.wov-pill-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.wov-pill { background: #14281c; border: 1px solid #2c4a35; color: #b9c4b8; padding: 7px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.wov-pill.on { background: linear-gradient(135deg, #d4a94f, #34d399); color: #0d1a12; border-color: transparent; }
+
+.wov-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 16px; }
+.wov-card {
+  background: linear-gradient(160deg, #17301f, #14281c); border: 1px solid #2c4a35; border-left-width: 4px;
+  border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 8px;
+  transition: background 0.6s ease, transform 0.15s ease;
 }
+.wov-card.flash { background: rgba(52,211,153,0.14); }
+.wov-card:hover { transform: translateY(-2px); }
+.wov-card-top { display: flex; align-items: flex-start; gap: 10px; }
+.wov-card-emoji { font-size: 22px; }
+.wov-card-info { flex: 1; min-width: 0; }
+.wov-card-title { margin: 0; font-weight: 700; font-size: 14px; }
+.wov-card-meta { margin: 2px 0 0; font-size: 12px; color: #7f9184; }
+.wov-card-desc { font-size: 12px; color: #b9c4b8; margin: 0; line-height: 1.4; }
+.wov-hidden-note { font-size: 12px; color: #7f9184; font-style: italic; margin: 6px 0; }
 
-.welfare-actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
+.wov-status-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; border: 1px solid; white-space: nowrap; }
+
+.wov-progress { margin: 8px 0; }
+.wov-progress-track { background: #14281c; border-radius: 20px; height: 8px; overflow: hidden; border: 1px solid #2c4a35; }
+.wov-progress-fill { height: 100%; border-radius: 20px; transition: width 0.4s ease; }
+.wov-progress-stats { display: flex; justify-content: space-between; font-size: 12px; color: #b9c4b8; margin-top: 6px; }
+
+.wov-card-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.wov-link-btn { background: transparent; border: none; color: #f0c96b; font-size: 12px; font-weight: 600; cursor: pointer; padding: 0; }
+.wov-contribute-btn {
+  background: linear-gradient(135deg, #d4a94f, #1f6b47); color: #0d1a12; border: none;
+  padding: 8px 16px; border-radius: 9px; font-weight: 700; font-size: 12px; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(212,169,79,0.25);
 }
+.wov-contribute-btn:hover { filter: brightness(1.08); }
 
-/* SEARCH */
-.welfare-search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: white;
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
+.wov-expand { margin-top: 6px; border-top: 1px solid #2c4a35; padding-top: 10px; }
+.wov-contrib-list { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
+.wov-contrib-row { display: grid; grid-template-columns: 1.3fr auto auto auto; align-items: center; gap: 8px; background: #14281c; border: 1px solid #2c4a35; border-radius: 8px; padding: 7px 10px; font-size: 12px; }
+.wov-contrib-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wov-contrib-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 12px; white-space: nowrap; }
+.wov-contrib-badge.pledge  { background: rgba(167,139,250,0.18); color: #c9a6f7; }
+.wov-contrib-badge.payment { background: rgba(52,211,153,0.15); color: #4ade80; }
+.wov-contrib-status { font-size: 10px; font-weight: 700; }
+.wov-contrib-status.pending  { color: #fbbf24; }
+.wov-contrib-status.approved { color: #4ade80; }
+.wov-contrib-status.rejected { color: #f87171; }
+.wov-contrib-amt { color: #f0c96b; font-weight: 700; text-align: right; white-space: nowrap; }
+.wov-no-contrib { font-size: 12px; color: #7f9184; margin: 4px 0; }
+
+/* ── Contribute modal ── */
+.wov-overlay { position: fixed; inset: 0; background: rgba(6,14,9,0.72); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
+.wov-modal { background: linear-gradient(160deg, #17301f, #14281c); border: 1px solid #3a5c42; border-radius: 14px; width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto; padding: 22px; box-shadow: 0 8px 28px rgba(0,0,0,0.35); }
+.wov-modal-hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; border-bottom: 1px solid #2c4a35; padding-bottom: 12px; }
+.wov-modal-title { margin: 0; font-size: 16px; font-weight: 800; color: #f0c96b; }
+.wov-modal-sub { margin: 4px 0 0; font-size: 12px; color: #b9c4b8; }
+.wov-modal-close { background: transparent; border: none; color: #b9c4b8; font-size: 18px; cursor: pointer; }
+.wov-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+
+.wov-fg { margin-bottom: 14px; }
+.wov-label { display: block; font-size: 13px; font-weight: 600; color: #b9c4b8; margin-bottom: 6px; }
+.wov-req { color: #ef4444; }
+.wov-opt { color: #7f9184; font-weight: 400; font-size: 12px; }
+.wov-input { width: 100%; background: #0f1f16; border: 1px solid #2c4a35; color: #f3f0e6; padding: 10px 12px; border-radius: 9px; font-size: 14px; }
+.wov-input:focus { outline: none; border-color: #d4a94f; }
+.wov-ta { resize: vertical; }
+
+.wov-type-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.wov-type-btn { background: #0f1f16; border: 1px solid #2c4a35; color: #b9c4b8; padding: 10px 8px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.wov-type-btn.sel { border-color: #d4a94f; color: #f0c96b; background: rgba(212,169,79,0.1); }
+
+.wov-error { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); color: #fca5a5; padding: 10px 14px; border-radius: 9px; font-size: 13px; margin-top: 4px; }
+
+.wov-btn-cancel { background: transparent; border: 1px solid #3a5c42; color: #b9c4b8; padding: 10px 18px; border-radius: 9px; cursor: pointer; font-size: 14px; }
+.wov-btn-primary { background: linear-gradient(135deg, #d4a94f, #1f6b47); color: #0d1a12; border: none; font-weight: 700; padding: 10px 20px; border-radius: 9px; cursor: pointer; font-size: 14px; }
+.wov-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+@media (max-width: 720px) {
+  .welfare-module { padding: 14px; }
+  .wov-grid { grid-template-columns: 1fr; }
 }
-
-.welfare-search input {
-  border: none;
-  outline: none;
-  font-size: 13px;
-}
-
-/* KPI */
-.welfare-kpis {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.kpi-card {
-  background: white;
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
-}
-
-.kpi-card h3 {
-  margin-top: 5px;
-}
-
-.kpi-card.danger {
-  background: #fef2f2;
-  border-color: #fecaca;
-}
-
-/* WARNING */
-.warning-box {
-  background: #fff7ed;
-  border: 1px solid #fdba74;
-  padding: 10px;
-  border-radius: 10px;
-  margin-bottom: 12px;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  font-size: 13px;
-}
-
-/* TABLE */
-.table-wrapper {
-  background: white;
-  border-radius: 12px;
-  overflow-x: auto;
-  border: 1px solid #e2e8f0;
-}
-
-.welfare-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.welfare-table th,
-.welfare-table td {
-  padding: 10px;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.welfare-table th {
-  background: #f1f5f9;
-}
-
-.name-cell {
-  font-weight: 600;
-}
-
-/* COLORS */
-.green { color: #16a34a; }
-.red { color: #dc2626; }
-.orange { color: #ea580c; }

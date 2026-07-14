@@ -1,0 +1,41 @@
+.wir-locked { display: flex; align-items: center; gap: 10px; color: var(--ink-soft, #4c6058); font-size: 0.9rem; padding: 24px; background: #fff; border-radius: 14px; border: 1px solid var(--line, #dbe8e0); }
+.wir-loading { display: flex; justify-content: center; padding: 60px 0; }
+
+.wir-header { margin-bottom: 14px; }
+.wir-header h2 { margin: 0; font-size: 1.1rem; color: var(--ink, #14231d); }
+.wir-header p { margin: 4px 0 0; font-size: 0.8rem; color: var(--ink-soft, #4c6058); }
+
+.wir-summary-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+.wir-summary-strip div { background: var(--brand-tint, #e3f2ea); border-radius: 12px; padding: 12px; text-align: center; }
+.wir-summary-strip span { display: block; font-size: 0.68rem; color: var(--brand-dark, #0a3f2c); opacity: 0.8; margin-bottom: 2px; }
+.wir-summary-strip strong { font-size: 1rem; color: var(--brand-dark, #0a3f2c); }
+
+.wir-columns { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 16px; }
+
+.wir-panel { background: #fff; border: 1px solid var(--line, #dbe8e0); border-radius: 14px; padding: 16px; }
+.wir-panel h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font-size: 0.85rem; color: var(--ink, #14231d); }
+.wir-panel h3 .up { color: var(--brand, #0d5c3f); }
+.wir-panel h3 .down { color: #c8922f; }
+.wir-empty { font-size: 0.8rem; color: var(--ink-soft, #4c6058); }
+
+.wir-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.wir-list li { display: flex; align-items: baseline; gap: 8px; padding: 8px 10px; background: #f8fafc; border-radius: 8px; font-size: 0.82rem; }
+.wir-list li span { flex: 1; color: var(--ink, #14231d); }
+.wir-list li strong { color: var(--brand, #0d5c3f); }
+.wir-list li small { font-size: 0.68rem; color: var(--ink-soft, #4c6058); }
+.wir-zero { color: #b91c1c !important; }
+
+.wir-events-panel { margin-top: 0; }
+.wir-events-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.wir-event-chip { border-radius: 10px; padding: 12px; text-align: center; background: #f1f5f9; }
+.wir-event-chip span { display: block; font-size: 0.68rem; text-transform: capitalize; color: #64748b; margin-bottom: 4px; }
+.wir-event-chip strong { font-size: 1.1rem; color: var(--ink, #14231d); }
+.wir-event-chip.planned { background: #e0f2fe; }
+.wir-event-chip.ongoing { background: #fef3c7; }
+.wir-event-chip.completed { background: #dcfce7; }
+.wir-event-chip.cancelled { background: #fee2e2; }
+
+@media (max-width: 720px) {
+  .wir-columns { grid-template-columns: 1fr; }
+  .wir-summary-strip, .wir-events-strip { grid-template-columns: repeat(2, 1fr); }
+}

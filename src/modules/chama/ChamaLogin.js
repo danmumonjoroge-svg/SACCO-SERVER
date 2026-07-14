@@ -385,9 +385,9 @@ const verifyMember = async (e) => {
             <div className="cl-form cl-anim-in">
               <div className="cl-welcome">
                 <div className="cl-welcome__avatar">
-                  {(member?.full_name || "M").charAt(0).toUpperCase()}
+                  {(member?.name || "M").charAt(0).toUpperCase()}
                 </div>
-                <h3 className="cl-welcome__name">{member?.full_name || "Verified Member"}</h3>
+                <h3 className="cl-welcome__name">{member?.name || "Verified Member"}</h3>
                 <p className="cl-welcome__chama">{chama?.name}</p>
                 <span className={`cl-role-badge cl-role-badge--${(member?.role || "member").toLowerCase()}`}>
                   {member?.role || "Active Member"}
@@ -395,7 +395,7 @@ const verifyMember = async (e) => {
               </div>
 
               <p className="cl-welcome__sub">
-                Welcome back {member?.full_name}. Your Chama account has been verified successfully.
+                Welcome back {member?.name}. Your Chama account has been verified successfully.
               </p>
 
               <div className="cl-button-stack" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>

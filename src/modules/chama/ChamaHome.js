@@ -73,7 +73,7 @@ export default function ChamaHome() {
         marginBottom: "20px"
       }}>
         <h2 style={{ margin: 0 }}>
-          Welcome, {member?.full_name || member?.phone || "Member"}
+          Welcome, {member?.name || member?.phone || "Member"}
         </h2>
 
         <p style={{ margin: "6px 0 0", opacity: 0.7 }}>

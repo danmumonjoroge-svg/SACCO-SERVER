@@ -1,92 +1,689 @@
-.funds {
-  padding: 20px;
-  background: #f8fafc;
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* modules/chama/funds/ChamaFundsDashboard.css                                */
+/* Advanced Chama Funds Position Dashboard                                    */
+/* Dark ledger theme · Jungle Green/Gold accent · Mobile-first                */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Design tokens ──────────────────────────────────────────────────────── */
+.cf-wrapper, .cf-wrapper * {
+  box-sizing: border-box;
+}
+
+.cf-wrapper {
+  --cf-bg:          #071711;
+  --cf-surface:     rgba(255,255,255,0.04);
+  --cf-surface-2:   rgba(255,255,255,0.07);
+  --cf-border:      rgba(45,201,138,0.24);
+  --cf-border-soft: rgba(255,255,255,0.07);
+  --cf-accent:      #1f9e63;
+  --cf-accent-lt:   #7fe8ba;
+  --cf-accent-dim:  rgba(31,158,99,0.18);
+  --cf-text:        #e2e8f0;
+  --cf-muted:       #7c9285;
+  --cf-dim:         #364b40;
+  --cf-green:       #4ade80;
+  --cf-red:         #f87171;
+  --cf-yellow:      #d4af37;
+  --cf-purple:      #b8860b;
+  --cf-radius:      8px;
+  --cf-radius-lg:   12px;
+  --cf-t:           0.15s ease;
+
+  padding: 24px;
+  max-width: 1140px;
+  margin: 0 auto;
+  color: var(--cf-text);
+  font-family: "Inter", "IBM Plex Sans", system-ui, sans-serif;
+  background: var(--cf-bg);
   min-height: 100vh;
-  font-family: sans-serif;
 }
 
-.header h1 {
-  font-size: 22px;
-  font-weight: 800;
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 1. PAGE HEADER                                                               */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.cf-page-hdr {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
 }
 
-.header p {
-  color: #64748b;
-  margin-bottom: 20px;
+.cf-page-title {
+  margin: 0 0 4px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.02em;
 }
 
-.grid {
+.cf-page-sub {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--cf-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cf-last-updated { color: var(--cf-dim); }
+
+.cf-page-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cf-icon-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: var(--cf-surface-2);
+  border: 1px solid var(--cf-border-soft);
+  border-radius: var(--cf-radius);
+  color: var(--cf-accent-lt);
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--cf-t);
+}
+.cf-icon-btn:hover    { background: var(--cf-accent-dim); border-color: var(--cf-accent); }
+.cf-icon-btn:disabled { opacity: 0.5; cursor: wait; }
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 2. LOADING STATE                                                             */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.cf-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 260px;
+  color: var(--cf-accent-lt);
+  font-size: 0.88rem;
+}
+
+@keyframes cf-spin {
+  to { transform: rotate(360deg); }
+}
+.cf-spin { animation: cf-spin 0.9s linear infinite; }
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 3. KPI STRIP                                                                 */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.cf-kpi-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
-.card {
-  background: white;
-  padding: 12px;
-  border-radius: 12px;
+.cf-kpi {
   display: flex;
-  gap: 10px;
-  border: 1px solid #e2e8f0;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--cf-surface);
+  border: 1px solid;
+  border-radius: var(--cf-radius);
+  position: relative;
+  overflow: hidden;
+  transition: background var(--cf-t);
+}
+.cf-kpi:hover { background: var(--cf-surface-2); }
+
+.cf-kpi-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  flex-shrink: 0;
 }
 
-.card .title {
-  font-size: 12px;
-  color: #64748b;
+.cf-kpi-body  { flex: 1; min-width: 0; }
+.cf-kpi-title { margin: 0 0 3px; font-size: 0.65rem; color: var(--cf-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.cf-kpi-value { margin: 0; font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; white-space: nowrap; }
+.cf-kpi-sub   { margin: 3px 0 0; font-size: 0.68rem; color: var(--cf-dim); }
+
+.cf-kpi-trend {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.cf-kpi-trend.up   { color: var(--cf-green); }
+.cf-kpi-trend.down { color: var(--cf-red); }
+.cf-kpi-trend-lbl  { font-size: 0.6rem; color: var(--cf-dim); font-weight: 400; }
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 4. CARD SHELL                                                                */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.cf-card {
+  background: rgba(6,26,18,0.65);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-lg);
+  padding: 18px 20px;
+  margin-bottom: 16px;
 }
 
-.card .value {
-  font-weight: bold;
+.cf-sec-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
 }
 
-.section {
-  background: white;
-  padding: 15px;
-  border-radius: 12px;
-  margin-bottom: 15px;
-  border: 1px solid #e2e8f0;
+.cf-sec-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--cf-text);
 }
 
-.section h2 {
+.cf-sec-action { flex-shrink: 0; }
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 5. TWO-COLUMN ROW                                                            */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.cf-row-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 6. FUND HEALTH                                                               */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.cf-health {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.cf-health-ring { flex-shrink: 0; }
+
+.cf-health-pct {
   font-size: 14px;
+  font-weight: 700;
+  font-family: "IBM Plex Mono", monospace;
+}
+.cf-health-lbl {
+  font-size: 8px;
+  fill: #7c9285;
+  font-family: inherit;
+}
+
+.cf-health-details { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 8px; }
+
+.cf-health-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: var(--cf-surface);
+  border-radius: 6px;
+  font-size: 0.78rem;
+  color: var(--cf-muted);
+}
+.cf-health-row strong { font-family: "IBM Plex Mono", monospace; font-size: 0.8rem; }
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 7. NET WORTH TREND                                                           */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.cf-trend-wrap { margin-bottom: 10px; }
+
+.cf-trend-svg {
+  display: block;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.cf-trend-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+}
+.cf-trend-label {
+  font-size: 0.65rem;
+  color: var(--cf-dim);
+  text-align: center;
+  flex: 1;
+}
+
+.cf-trend-summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  color: var(--cf-muted);
+  padding-top: 10px;
+  border-top: 1px solid var(--cf-border-soft);
+  margin-top: 4px;
+}
+.cf-trend-summary strong { font-family: "IBM Plex Mono", monospace; font-size: 0.8rem; }
+.cf-trend-empty { font-size: 0.78rem; color: var(--cf-dim); padding: 12px 0; }
+
+.cf-green { color: var(--cf-green); font-weight: 700; }
+.cf-red   { color: var(--cf-red);   font-weight: 700; }
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 8. DONUT ALLOCATION                                                          */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.cf-alloc-wrap {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+.cf-alloc-donut { flex-shrink: 0; }
+
+.cf-donut { overflow: visible; }
+
+.cf-donut-val {
+  font-size: 13px;
+  font-weight: 700;
+  fill: #e2e8f0;
+  font-family: "IBM Plex Mono", monospace;
+}
+.cf-donut-lbl {
+  font-size: 8px;
+  fill: #7c9285;
+}
+
+.cf-alloc-legend {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.cf-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--cf-muted);
+  padding: 5px 8px;
+  border-radius: 5px;
+  transition: background var(--cf-t);
+}
+.cf-legend-item:hover { background: var(--cf-surface); }
+
+.cf-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.cf-legend-name { flex: 1; color: var(--cf-text); font-weight: 500; }
+.cf-legend-val  { font-family: "IBM Plex Mono", monospace; font-size: 0.78rem; color: var(--cf-text); white-space: nowrap; }
+.cf-legend-pct  { font-size: 0.7rem; color: var(--cf-dim); width: 38px; text-align: right; }
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 9. ACCOUNT CARDS                                                             */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.cf-acc-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.cf-acc-card {
+  background: var(--cf-surface);
+  border: 1px solid var(--cf-border-soft);
+  border-left: 3px solid;
+  border-radius: var(--cf-radius);
+  padding: 14px 15px;
+  transition: background var(--cf-t);
+}
+.cf-acc-card:hover { background: var(--cf-surface-2); }
+
+.cf-acc-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
   margin-bottom: 10px;
 }
 
-.row {
+.cf-acc-icon {
   display: flex;
-  justify-content: space-between;
-  padding: 8px 0;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.left {
-  display: flex;
-  gap: 6px;
   align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  flex-shrink: 0;
 }
 
-.tx {
+.cf-acc-info  { flex: 1; min-width: 0; }
+.cf-acc-name  { margin: 0 0 2px; font-weight: 600; font-size: 0.84rem; color: var(--cf-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cf-acc-sub   { margin: 0; font-size: 0.67rem; color: var(--cf-muted); }
+
+.cf-acc-growth {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.cf-acc-growth.up   { color: var(--cf-green); }
+.cf-acc-growth.down { color: var(--cf-red); }
+
+.cf-acc-balance {
+  margin: 0 0 10px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #fff;
+  font-family: "IBM Plex Mono", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Allocation bar inside card */
+.cf-acc-alloc-bar {
+  height: 5px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 9999px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.cf-acc-alloc-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.6s ease;
+}
+.cf-acc-alloc-pct {
+  margin: 0;
+  font-size: 0.65rem;
+  color: var(--cf-dim);
+}
+
+/* Sparkline area */
+.cf-acc-spark {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--cf-border-soft);
+}
+
+.cf-spark { display: block; }
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 10. ASSETS REGISTER                                                          */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.cf-assets-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+
+.cf-asset-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  background: var(--cf-surface);
+  border-radius: 6px;
+  transition: background var(--cf-t);
+}
+.cf-asset-row:hover { background: var(--cf-surface-2); }
+
+.cf-asset-left { flex: 1; min-width: 0; }
+.cf-asset-name { display: block; font-weight: 600; font-size: 0.84rem; color: var(--cf-text); margin-bottom: 5px; }
+
+.cf-asset-bar-wrap {
+  height: 4px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+.cf-asset-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #e8c661, #b8860b);
+  border-radius: 9999px;
+  transition: width 0.6s ease;
+}
+
+.cf-asset-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.cf-asset-val { font-family: "IBM Plex Mono", monospace; font-size: 0.84rem; font-weight: 600; color: var(--cf-yellow); }
+.cf-asset-pct { font-size: 0.67rem; color: var(--cf-dim); }
+
+.cf-assets-total {
   display: flex;
   justify-content: space-between;
-  padding: 10px;
-  border: 1px solid #f1f5f9;
-  border-radius: 10px;
-  margin-bottom: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(212,175,55,0.09);
+  border: 1px solid rgba(212,175,55,0.25);
+  border-radius: 6px;
+  font-size: 0.82rem;
+  color: var(--cf-muted);
+}
+.cf-assets-total strong { font-family: "IBM Plex Mono", monospace; font-size: 0.9rem; }
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 11. MOVEMENTS LOG                                                            */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.cf-tx-filter-row {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
 }
 
-.amount {
-  font-weight: bold;
+.cf-pill {
+  padding: 4px 12px;
+  background: var(--cf-surface);
+  border: 1px solid var(--cf-border-soft);
+  border-radius: 9999px;
+  color: var(--cf-muted);
+  font-size: 0.73rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--cf-t);
 }
+.cf-pill:hover { border-color: var(--cf-accent); color: var(--cf-accent-lt); }
+.cf-pill.on    { background: var(--cf-accent-dim); border-color: var(--cf-accent); color: var(--cf-accent-lt); font-weight: 600; }
+
+.cf-tx-list { display: flex; flex-direction: column; gap: 3px; }
+
+.cf-tx-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--cf-surface);
+  border: 1px solid var(--cf-border-soft);
+  border-radius: var(--cf-radius);
+  transition: background var(--cf-t);
+}
+.cf-tx-row:hover { background: var(--cf-surface-2); }
+
+.cf-tx-type-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.cf-tx-body  { flex: 1; min-width: 0; }
+.cf-tx-desc  { margin: 0 0 3px; font-size: 0.82rem; font-weight: 500; color: var(--cf-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cf-tx-meta  { margin: 0; display: flex; align-items: center; gap: 4px; font-size: 0.72rem; color: var(--cf-muted); flex-wrap: wrap; }
+.cf-tx-arrow { color: var(--cf-dim); }
+.cf-tx-date  { margin-left: 8px; color: var(--cf-dim); }
+
+.cf-tx-amount {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.88rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.cf-tx-amount.in  { color: var(--cf-green); }
+.cf-tx-amount.out { color: var(--cf-red); }
+
+.cf-load-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 9px;
+  margin-top: 8px;
+  background: transparent;
+  border: 1px dashed var(--cf-border-soft);
+  border-radius: var(--cf-radius);
+  color: var(--cf-accent-lt);
+  font-size: 0.78rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--cf-t);
+}
+.cf-load-more:hover         { background: var(--cf-accent-dim); border-style: solid; }
+.cf-load-more.secondary     { color: var(--cf-muted); }
+.cf-load-more.secondary:hover { color: var(--cf-text); }
+
+.cf-tx-count {
+  margin: 6px 0 0;
+  font-size: 0.7rem;
+  color: var(--cf-dim);
+  text-align: right;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 12. MISC UTILITIES                                                           */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.cf-empty-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  font-size: 0.82rem;
+  color: var(--cf-dim);
+  background: var(--cf-surface);
+  border-radius: var(--cf-radius);
+}
+
+.cf-text-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  color: var(--cf-accent-lt);
+  font-size: 0.76rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity var(--cf-t);
+}
+.cf-text-btn:hover { opacity: 0.75; }
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 13. SCROLLBAR                                                                */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.cf-wrapper ::-webkit-scrollbar       { width: 5px; height: 5px; }
+.cf-wrapper ::-webkit-scrollbar-track { background: transparent; }
+.cf-wrapper ::-webkit-scrollbar-thumb { background: rgba(45,201,138,0.32); border-radius: 9999px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 14. RESPONSIVE — TABLET ≤ 900px                                             */
+/* ═══════════════════════════════════════════════════════════════════════════ */
 
 @media (max-width: 900px) {
-  .grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  .cf-kpi-row     { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .cf-acc-grid    { grid-template-columns: repeat(2, 1fr); }
+  .cf-row-2col    { grid-template-columns: 1fr; }
 }
 
-@media (max-width: 500px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 15. RESPONSIVE — PHONE ≤ 600px                                              */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+  .cf-wrapper     { padding: 12px; }
+  .cf-card        { padding: 14px; }
+
+  .cf-page-title  { font-size: 1.15rem; }
+  .cf-page-hdr    { flex-direction: column; gap: 10px; }
+  .cf-page-actions{ flex-direction: row; }
+  .cf-icon-btn span { display: none; }  /* icon-only on phone */
+
+  .cf-kpi-row     { grid-template-columns: 1fr 1fr; gap: 7px; }
+  .cf-kpi         { padding: 11px 12px; gap: 9px; }
+  .cf-kpi-value   { font-size: 0.95rem; }
+  .cf-kpi-trend   { display: none; }  /* declutter on phone */
+
+  .cf-acc-grid    { grid-template-columns: 1fr; }
+
+  .cf-alloc-wrap  { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .cf-alloc-donut { align-self: center; }
+  .cf-alloc-legend { min-width: 100%; }
+
+  .cf-health          { flex-direction: column; align-items: center; }
+  .cf-health-details  { width: 100%; }
+
+  .cf-sec-hdr         { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .cf-tx-filter-row   { width: 100%; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; }
+  .cf-tx-filter-row::-webkit-scrollbar { display: none; }
+
+  .cf-tx-amount { font-size: 0.82rem; }
+
+  .cf-trend-summary { gap: 8px; font-size: 0.73rem; }
+
+  .cf-row-2col { gap: 12px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 16. RESPONSIVE — SMALL PHONE ≤ 380px                                        */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 380px) {
+  .cf-wrapper   { padding: 8px; }
+  .cf-card      { padding: 12px 10px; }
+
+  .cf-kpi-row   { grid-template-columns: 1fr 1fr; gap: 5px; }
+  .cf-kpi-value { font-size: 0.88rem; }
+  .cf-kpi-icon  { width: 28px; height: 28px; }
+
+  .cf-page-title { font-size: 1rem; }
+
+  .cf-acc-balance { font-size: 0.98rem; }
+  .cf-legend-val  { font-size: 0.72rem; }
+
+  .cf-tx-desc   { font-size: 0.77rem; }
+  .cf-tx-amount { font-size: 0.77rem; }
 }

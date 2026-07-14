@@ -1,0 +1,91 @@
+.mdr-page { max-width: 100%; }
+
+.mdr-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
+.mdr-header > div:first-child { display: flex; align-items: flex-start; gap: 10px; }
+.mdr-add-btn {
+  display: inline-flex; align-items: center; gap: 6px; background: var(--brand, #0d5c3f); color: #fff;
+  border: none; border-radius: 10px; padding: 9px 14px; font-size: 0.8rem; font-weight: 600; cursor: pointer; height: fit-content;
+}
+
+.mdr-add-form { background: #fff; border: 1px solid var(--line, #dbe8e0); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+.mdr-add-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.mdr-add-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 0.76rem; font-weight: 600; color: var(--ink, #14231d); }
+.mdr-add-grid input, .mdr-add-grid select { border: 1px solid var(--line, #dbe8e0); border-radius: 8px; padding: 8px 10px; font-size: 0.84rem; font-weight: 400; }
+.mdr-add-grid small { font-weight: 400; color: var(--ink-soft, #4c6058); font-size: 0.68rem; }
+.mdr-add-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+
+.mdr-icon { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 9px; background: var(--brand-tint, #e3f2ea); color: var(--brand, #0d5c3f); flex-shrink: 0; }
+.mdr-header h2 { margin: 0; font-size: 1.05rem; color: var(--ink, #14231d); }
+.mdr-header p { margin: 3px 0 0; font-size: 0.8rem; color: var(--ink-soft, #4c6058); }
+
+.mdr-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+
+.mdr-search {
+  display: flex; align-items: center; gap: 8px; border: 1px solid var(--line, #dbe8e0); border-radius: 10px;
+  padding: 8px 12px; background: #fff; flex: 1; min-width: 220px; max-width: 340px; color: var(--ink-soft, #4c6058);
+}
+.mdr-search input { border: none; outline: none; flex: 1; font-size: 0.84rem; color: var(--ink, #14231d); }
+
+.mdr-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.mdr-filter-chip {
+  border: 1px solid var(--line, #dbe8e0); background: #fff; border-radius: 999px; padding: 6px 12px;
+  font-size: 0.76rem; text-transform: capitalize; cursor: pointer; color: var(--ink-soft, #4c6058);
+}
+.mdr-filter-chip.active { background: var(--brand, #0d5c3f); border-color: var(--brand, #0d5c3f); color: #fff; font-weight: 600; }
+
+.mdr-error { display: flex; gap: 6px; align-items: center; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; border-radius: 9px; padding: 9px 12px; font-size: 0.8rem; margin-bottom: 14px; }
+
+.mdr-loading, .mdr-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 50px 0; color: var(--ink-soft, #4c6058); }
+
+.mdr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
+
+.mdr-card { background: #fff; border: 1px solid var(--line, #dbe8e0); border-radius: 14px; padding: 14px; border-left: 3px solid var(--line, #dbe8e0); }
+.mdr-card.active { border-left-color: var(--brand, #0d5c3f); }
+.mdr-card.pending { border-left-color: #c8922f; }
+.mdr-card.suspended { border-left-color: #b91c1c; opacity: 0.85; }
+
+.mdr-card-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+.mdr-avatar {
+  display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%;
+  background: var(--brand-tint, #e3f2ea); color: var(--brand-dark, #0a3f2c); font-size: 0.78rem; font-weight: 700; flex-shrink: 0;
+}
+.mdr-card-titles { flex: 1; min-width: 0; }
+.mdr-card-titles h3 { margin: 0; font-size: 0.88rem; color: var(--ink, #14231d); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mdr-role-badge { font-size: 0.68rem; text-transform: capitalize; color: var(--gold-dark, #a8781f); font-weight: 600; }
+
+.mdr-status-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.66rem; font-weight: 700; text-transform: capitalize; padding: 3px 8px; border-radius: 999px; flex-shrink: 0; }
+.mdr-status-badge.active { background: var(--brand-tint, #e3f2ea); color: var(--brand-dark, #0a3f2c); }
+.mdr-status-badge.pending { background: #fef3c7; color: #92400e; }
+.mdr-status-badge.suspended { background: #fee2e2; color: #991b1b; }
+
+.mdr-detail-row { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--ink, #14231d); margin-bottom: 4px; }
+.mdr-detail-row-muted { font-size: 0.72rem; color: var(--ink-soft, #4c6058); margin-bottom: 8px; }
+
+.mdr-balances { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: #f8fafc; border-radius: 9px; padding: 8px; margin-bottom: 10px; }
+.mdr-balances div { display: flex; flex-direction: column; text-align: center; gap: 1px; }
+.mdr-balances span { font-size: 0.62rem; color: var(--ink-soft, #4c6058); }
+.mdr-balances strong { font-size: 0.74rem; color: var(--ink, #14231d); }
+
+.mdr-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.mdr-edit-btn, .mdr-approve-btn, .mdr-suspend-btn {
+  display: inline-flex; align-items: center; gap: 4px; border: none; border-radius: 7px; padding: 6px 9px;
+  font-size: 0.7rem; font-weight: 600; cursor: pointer;
+}
+.mdr-edit-btn { background: #f1f5f9; color: #334155; }
+.mdr-approve-btn { background: var(--brand-tint, #e3f2ea); color: var(--brand-dark, #0a3f2c); }
+.mdr-suspend-btn { background: #fee2e2; color: #991b1b; }
+
+.mdr-modal-overlay { position: fixed; inset: 0; background: rgba(7,42,30,0.5); display: flex; align-items: center; justify-content: center; z-index: 999; padding: 20px; }
+.mdr-modal { background: #fff; border-radius: 16px; padding: 20px; width: 380px; max-width: 100%; }
+.mdr-modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.mdr-modal-head h3 { margin: 0; font-size: 1rem; }
+.mdr-modal-head button { background: none; border: none; cursor: pointer; }
+.mdr-modal label { display: flex; flex-direction: column; gap: 4px; font-size: 0.78rem; font-weight: 600; margin-bottom: 12px; }
+.mdr-modal select, .mdr-modal textarea { border: 1px solid var(--line, #dbe8e0); border-radius: 8px; padding: 8px 10px; font-size: 0.84rem; font-weight: 400; font-family: inherit; }
+.mdr-modal textarea { min-height: 60px; resize: vertical; }
+.mdr-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+.mdr-cancel { background: none; border: 1px solid var(--line, #dbe8e0); border-radius: 9px; padding: 8px 14px; cursor: pointer; font-size: 0.8rem; }
+.mdr-save { display: inline-flex; align-items: center; gap: 6px; background: var(--brand, #0d5c3f); color: #fff; border: none; border-radius: 9px; padding: 8px 16px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+
+.spin { animation: mdr-spin 0.8s linear infinite; }
+@keyframes mdr-spin { to { transform: rotate(360deg); } }

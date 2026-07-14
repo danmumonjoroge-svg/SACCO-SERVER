@@ -1,105 +1,226 @@
+/* =========================
+   MAIN LAYOUT
+========================= */
 
-.loans-container {
-  padding: 16px;
-  background: #f8fafc;
+.chama-loans-layout {
+  display: flex;
+  min-height: 100vh;
+  background: #f6f8fb;
+  font-family: Arial, sans-serif;
 }
 
-/* HEADER */
-.loans-header {
+/* =========================
+   SIDEBAR
+========================= */
+
+.chama-sidebar {
+  width: 260px;
+  background: #ffffff;
+  border-right: 1px solid #e6e9ef;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.logo {
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 20px;
+  color: #1f2937;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #374151;
+  transition: 0.2s;
+}
+
+.menu-item:hover {
+  background: #f3f4f6;
+}
+
+.menu-item.active {
+  background: #2563eb;
+  color: white;
+}
+
+/* =========================
+   MAIN CONTENT
+========================= */
+
+.chama-main {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+/* =========================
+   DASHBOARD PLACEHOLDER
+========================= */
+
+.placeholder {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  text-align: center;
+  color: #6b7280;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+/* =========================
+   GENERAL MODULE STYLES
+   (shared by all sub-pages)
+========================= */
+
+.module-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 14px;
-}
-
-.loans-title {
-  font-size: 18px;
-  font-weight: 700;
-  display: flex;
-  gap: 8px;
   align-items: center;
-}
-
-.loans-actions {
-  display: flex;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
   gap: 10px;
-  align-items: center;
 }
 
-/* SEARCH */
-.loans-search {
+.search-box {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   background: white;
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
 }
 
-.loans-search input {
+.search-box input {
   border: none;
   outline: none;
-  font-size: 13px;
 }
 
-/* KPI */
-.loan-kpis {
+/* =========================
+   APPLICATION CARDS
+========================= */
+
+.application-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-bottom: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 15px;
 }
 
-.kpi-card {
+.application-card {
   background: white;
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
+  padding: 15px;
+  border-radius: 14px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
 }
 
-.kpi-card h3 {
-  margin-top: 5px;
-  font-size: 16px;
+.application-card .status {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
 }
 
-.kpi-card.danger {
-  border-color: #fecaca;
+.status.Pending {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.status.Approved {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.status.Rejected {
   background: #fef2f2;
+  color: #b91c1c;
 }
 
-/* TABLE */
-.table-wrapper {
-  background: white;
-  border-radius: 12px;
-  overflow-x: auto;
-  border: 1px solid #e2e8f0;
+/* =========================
+   BUTTONS
+========================= */
+
+button {
+  cursor: pointer;
+  border: none;
+  padding: 10px 12px;
+  border-radius: 8px;
 }
 
-.loans-table {
+.approve-btn {
+  background: #16a34a;
+  color: white;
+}
+
+.reject-btn {
+  background: #dc2626;
+  color: white;
+}
+
+.disburse-btn {
+  background: #2563eb;
+  color: white;
   width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
+  margin-top: 10px;
 }
 
-.loans-table th,
-.loans-table td {
+/* =========================
+   REPAYMENT FORM
+========================= */
+
+.repayment-form {
+  background: white;
+  padding: 15px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.repayment-form input,
+.repayment-form select {
+  width: 100%;
   padding: 10px;
-  border-bottom: 1px solid #e2e8f0;
+  margin: 6px 0;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
 }
 
-.loans-table th {
-  background: #f1f5f9;
+/* =========================
+   REPORT PANELS
+========================= */
+
+.report-panel {
+  background: white;
+  padding: 15px;
+  border-radius: 12px;
+  margin-bottom: 15px;
 }
 
-.name-cell {
-  font-weight: 600;
-}
+/* =========================
+   RESPONSIVE DESIGN
+========================= */
 
-/* COLORS */
-.blue { color: #2563eb; }
-.green { color: #16a34a; }
+@media (max-width: 768px) {
+  .chama-loans-layout {
+    flex-direction: column;
+  }
 
-.total {
-  font-weight: 800;
-  color: #059669;
+  .chama-sidebar {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .menu-item {
+    flex: 1;
+    justify-content: center;
+    font-size: 12px;
+  }
+
+  .chama-main {
+    padding: 10px;
+  }
 }

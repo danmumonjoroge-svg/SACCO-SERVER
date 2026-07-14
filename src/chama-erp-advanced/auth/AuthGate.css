@@ -1,0 +1,11 @@
+.ag-splash {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-darker, #072a1e);
+  color: var(--gold, #c8922f);
+}
+
+.spin { animation: ag-spin 0.8s linear infinite; }
+@keyframes ag-spin { to { transform: rotate(360deg); } }

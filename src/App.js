@@ -3,7 +3,6 @@
 import React from "react";
 import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "./Context/AuthContext";
-import { ChamaProvider } from "./modules/chama/ChamaContext";
 
 import AuthPage      from "./components/Auth/AuthPage";
 import AdminLogin    from "./components/Auth/AdminLogin";
@@ -17,7 +16,20 @@ import Savings       from "./components/Dashboard/Savings";
 import ShareCapital  from "./components/Dashboard/ShareCapital";
 import Loans         from "./components/Dashboard/Loans";
 import Statements    from "./components/Dashboard/Statements";
-import ChamaRouter   from "./modules/chama/ChamaRouter";
+
+// ─────────────────────────────────────────────
+// CHAMA ERP ADVANCED
+// Fully self-contained: its own login (phone + password, multi-chama
+// select, license gate) and its own dashboard, built entirely from
+// src/chama-erp-advanced/. Nothing from the old chama module
+// (ChamaRouter.js, ChamaDashboard.js, chamamembers.js, etc.) is imported
+// anywhere in this file anymore — that folder can be deleted from disk.
+// ─────────────────────────────────────────────
+import { ChamaProvider }        from "./chama-erp-advanced/ChamaContext";
+import AuthGate                 from "./chama-erp-advanced/auth/AuthGate";
+import ChamaDashboardAdvanced   from "./chama-erp-advanced/ChamaDashboardAdvanced";
+import PlatformAdminGate        from "./chama-erp-advanced/platform-admin/PlatformAdminGate";
+import LicenseManager           from "./chama-erp-advanced/platform-admin/LicenseManager";
 
 import AdminLayout            from "./Pages/Admin/AdminLayout";
 import AdminDashboard         from "./Pages/Admin/Dashboard";
@@ -160,58 +172,91 @@ function MemberLoginRoute() {
 // ─────────────────────────────────────────────
 function App() {
   return (
-    <ChamaProvider>
-      <Routes>
-        <Route path="/" element={<PublicSite />} />
-        <Route path="/unassigned-onboarding" element={<UnassignedOnboarding />} />
-        <Route path="/set-password" element={<SetPassword />} />
+    <Routes>
+      <Route path="/" element={<PublicSite />} />
+      <Route path="/unassigned-onboarding" element={<UnassignedOnboarding />} />
+      <Route path="/set-password" element={<SetPassword />} />
 
-        <Route path="/login" element={<MemberLoginRoute />} />
-        <Route path="/admin-login" element={<AdminLoginRoute />} />
+      <Route path="/login" element={<MemberLoginRoute />} />
+      <Route path="/admin-login" element={<AdminLoginRoute />} />
 
-        <Route path="/chama/*" element={<ChamaRouter />} />
-        <Route path="/redirect" element={<PostLoginRedirect />} />
+      {/*
+        Chama ERP Advanced — self-contained: its own provider, its own
+        login gate, its own dashboard. AuthGate handles phone+password
+        login, multi-chama selection, and license checking on its own;
+        ChamaDashboardAdvanced only ever renders once all three have
+        passed. No route matching inside — it's a single-page sidebar
+        dashboard, not a sub-router, so "/chama" is enough (no /*).
+      */}
+      <Route
+        path="/chama"
+        element={
+          <ChamaProvider>
+            <AuthGate>
+              <ChamaDashboardAdvanced />
+            </AuthGate>
+          </ChamaProvider>
+        }
+      />
 
-        <Route path="/member" element={<MemberGuard />}>
-          <Route element={<DashboardMain />}>
-            <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<DashboardHome />} />
-            <Route path="profile" element={<Profile />} />
-            <Route path="savings" element={<Savings />} />
-            <Route path="shares" element={<ShareCapital />} />
-            <Route path="loans" element={<Loans />} />
-            <Route path="statement" element={<Statements />} />
-          </Route>
+      {/*
+        Platform-level chama licensing. Deliberately outside ChamaProvider/
+        AuthGate — this is what turns a chama's license on in the first
+        place, so it can't depend on a chama already being logged into.
+        Gated by a single shared key (REACT_APP_PLATFORM_ADMIN_KEY), not a
+        real login — see PlatformAdminGate.js for why, and what to replace
+        it with before more than one person needs access.
+      */}
+      <Route
+        path="/platform-admin"
+        element={
+          <PlatformAdminGate>
+            <LicenseManager />
+          </PlatformAdminGate>
+        }
+      />
+
+      <Route path="/redirect" element={<PostLoginRedirect />} />
+
+      <Route path="/member" element={<MemberGuard />}>
+        <Route element={<DashboardMain />}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<DashboardHome />} />
+          <Route path="profile" element={<Profile />} />
+          <Route path="savings" element={<Savings />} />
+          <Route path="shares" element={<ShareCapital />} />
+          <Route path="loans" element={<Loans />} />
+          <Route path="statement" element={<Statements />} />
         </Route>
+      </Route>
 
-        <Route path="/admin" element={<StaffGuard />}>
-          <Route element={<AdminLayout />}>
-            <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<AdminDashboard />} />
-            <Route path="erp-dashboard" element={<AdminERPDashboard />} />
-            <Route path="members" element={<AdminMembers />} />
-            <Route path="member-statements" element={<AdminMemberStatements />} />
-            <Route path="loans" element={<AdminLoans />} />
-            <Route path="loan-application" element={<AdminLoanApplication />} />
-            <Route path="loan-approval" element={<AdminLoanApproval />} />
-            <Route path="loan-disbursement" element={<AdminLoanDisbursement />} />
-            <Route path="loan-repayments" element={<AdminLoanRepayments />} />
-            <Route path="loan-schedule" element={<AdminLoanSchedule />} />
-            <Route path="loan-penalties" element={<AdminLoanPenalties />} />
-            <Route path="interest-dashboard" element={<AdminInterestDashboard />} />
-            <Route path="trial-balance" element={<AdminTrialBalance />} />
-            <Route path="income-statement" element={<AdminIncomeStatement />} />
-            <Route path="balance-sheet" element={<AdminBalanceSheet />} />
-            <Route path="reports" element={<AdminReports />} />
-            <Route path="payments" element={<AdminPayments />} />
-            <Route path="settings" element={<AdminSettings />} />
-            <Route path="stories" element={<AdminStoryDashboard />} />
-          </Route>
+      <Route path="/admin" element={<StaffGuard />}>
+        <Route element={<AdminLayout />}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="erp-dashboard" element={<AdminERPDashboard />} />
+          <Route path="members" element={<AdminMembers />} />
+          <Route path="member-statements" element={<AdminMemberStatements />} />
+          <Route path="loans" element={<AdminLoans />} />
+          <Route path="loan-application" element={<AdminLoanApplication />} />
+          <Route path="loan-approval" element={<AdminLoanApproval />} />
+          <Route path="loan-disbursement" element={<AdminLoanDisbursement />} />
+          <Route path="loan-repayments" element={<AdminLoanRepayments />} />
+          <Route path="loan-schedule" element={<AdminLoanSchedule />} />
+          <Route path="loan-penalties" element={<AdminLoanPenalties />} />
+          <Route path="interest-dashboard" element={<AdminInterestDashboard />} />
+          <Route path="trial-balance" element={<AdminTrialBalance />} />
+          <Route path="income-statement" element={<AdminIncomeStatement />} />
+          <Route path="balance-sheet" element={<AdminBalanceSheet />} />
+          <Route path="reports" element={<AdminReports />} />
+          <Route path="payments" element={<AdminPayments />} />
+          <Route path="settings" element={<AdminSettings />} />
+          <Route path="stories" element={<AdminStoryDashboard />} />
         </Route>
+      </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </ChamaProvider>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 

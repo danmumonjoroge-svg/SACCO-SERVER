@@ -23,7 +23,7 @@ export const logAudit = async ({
 
     await supabase.from("audit_logs").insert([{
       user_id: user.id,
-      user_name: user.full_name || user.name || "Unknown",
+      user_name: user.name || "Unknown",
       role: user.role || "member",
 
       action,
