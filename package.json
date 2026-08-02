@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/cli": "^8.4.2",
+    "@capacitor/core": "^8.4.2",
+    "@hello-pangea/dnd": "^18.0.1",
     "@supabase/supabase-js": "^2.99.2",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
@@ -11,6 +15,7 @@
     "bootstrap": "^5.3.8",
     "chart.js": "^4.5.1",
     "crypto-js": "^4.2.0",
+    "date-fns": "^4.4.0",
     "framer-motion": "^12.38.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
@@ -28,6 +33,7 @@
     "react-router-dom": "^7.13.1",
     "react-scripts": "5.0.1",
     "recharts": "^3.8.0",
+    "sonner": "^2.0.7",
     "web-vitals": "^2.1.4"
   },
   "scripts": {

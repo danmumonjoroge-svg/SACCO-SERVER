@@ -44,31 +44,17 @@ export default function Loan() {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
   // ── Data Bootstrap ────────────────────────────────────────────────────────
-  // STRATEGY: Always use the live Supabase auth session to identify who is
-  // logged in. Never rely on localStorage keys like "remembered_member_no"
-  // which persist across logins and return the WRONG member.
-  //
-  // Flow:
-  //   1. supabase.auth.getSession() → gives us the current user's UUID (auth_user_id)
-  //   2. Query members table WHERE auth_user_id = UUID → gives us member_no + all details
-  //   3. Use that member_no to query general_ledger
-  //
-  // This means your members table MUST have an auth_user_id column that stores
-  // the Supabase auth UUID (the "sub" in the JWT). If your column is named
-  // differently (e.g. "user_id", "supabase_uid"), update the .eq() call below.
   useEffect(() => {
     const load = async () => {
       try {
-        // Step 1: Get the currently logged-in Supabase user
         const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
         if (sessionErr || !session?.user) {
           console.error("AUTH: No active Supabase session found. User may not be logged in.");
           return;
         }
-        const authUid = session.user.id; // Supabase UUID e.g. "c55e3522-012f-4bd3-b7c5-..."
+        const authUid = session.user.id;
         console.log("AUTH: Logged-in Supabase UID:", authUid);
 
-        // Step 2: Look up the member record using auth_user_id column
         const { data: memberData, error: memberErr } = await supabase
           .from("members")
           .select("*")
@@ -85,7 +71,6 @@ export default function Loan() {
         setMemberNo(no);
         setMember(memberData);
 
-        // Step 3: Fetch this member's ledger entries using their member_no
         const { data: l, error: lErr } = await supabase
           .from("general_ledger")
           .select("*")
@@ -93,7 +78,6 @@ export default function Loan() {
         if (lErr) console.error("Ledger fetch error:", lErr);
         if (l) setLedger(l);
 
-        // Fetch all members for guarantor dropdown (excluding current member)
         const { data: gm } = await supabase
           .from("members")
           .select("member_no, name, kyc_status, credit_score");
@@ -119,11 +103,9 @@ export default function Loan() {
       const debit  = Number(t.debit_account_id);
       const credit = Number(t.credit_account_id);
 
-      // 1018 Savings
       if (credit === SAVINGS_ACCOUNT) savings += amt;
       if (debit  === SAVINGS_ACCOUNT) savings -= amt;
 
-      // 1011 Loan Principal
       if (debit === LOAN_ACCOUNT) {
         loanDisbursed += amt;
         if (!lastActivityDate || txDate > lastActivityDate) lastActivityDate = txDate;
@@ -133,7 +115,6 @@ export default function Loan() {
         if (!lastActivityDate || txDate > lastActivityDate) lastActivityDate = txDate;
       }
 
-      // 1020 Interest
       if (credit === INTEREST_ACCOUNT) interestCharged += amt;
       if (debit  === INTEREST_ACCOUNT) interestPaid    += amt;
     });
@@ -142,7 +123,6 @@ export default function Loan() {
     const outstandingInterest = Math.max(0, interestCharged - interestPaid);
     const totalOutstanding    = currentLoan + outstandingInterest;
 
-    // Arrears
     let daysInArrears = 0;
     let arrearsClass  = "Current";
     if (currentLoan > 0 && lastActivityDate) {
@@ -156,12 +136,10 @@ export default function Loan() {
       }
     }
 
-    // Membership age
     const membershipMonths = member?.created_at
       ? Math.floor((Date.now() - new Date(member.created_at)) / (86400000 * 30.4375))
       : 0;
 
-    // Credit score & multiplier
     const score = member?.credit_score || 75;
     let riskRating = "Moderate Standard Risk";
     let multiplier = 2.25;
@@ -170,7 +148,6 @@ export default function Loan() {
     else if (score >= 55){ riskRating = "Substandard Risk Factor";  multiplier = 1.80; }
     else                 { riskRating = "High Institutional Risk";  multiplier = 1.0; }
 
-    // Product definitions
     const products = {
       "Instant Loan":       { rate: 10, insRate: 0, maxDuration: 3,  minMonths: 0, maxAmount: Math.min(10000, savings), reqSecurity: false },
       "Salary Advance":     { rate: 10, insRate: 0, maxDuration: 3,  minMonths: 0, maxAmount: 30000,                   reqSecurity: false },
@@ -188,28 +165,18 @@ export default function Loan() {
     const txCharge   = calcTxCharge(reqAmount);
     const netDisbursable = Math.max(0, reqAmount - txCharge);
 
-    // ── REDUCING BALANCE amortisation ────────────────────────────────────
-    // Monthly interest rate = annual rate / 12
-    // Each month: interest = outstanding balance × monthly rate
-    //             principal = fixed instalment − interest
-    // Fixed monthly instalment formula (annuity):
-    //   P × r / (1 − (1+r)^−n)   where r = monthly rate, n = months
-    // Insurance (if any) is charged as a one-off % of original principal
-    // and spread equally over the months on top of the amortised instalment.
     const buildSchedule = (principal, annualRatePct, months, insRatePct) => {
       if (months <= 0 || principal <= 0) {
         return { schedule: [], monthlyInstallment: 0, totalInterest: 0,
                  totalInsurance: 0, totalRepayable: principal };
       }
-      const r = annualRatePct / 100;               // monthly interest rate (rate is already per month)
+      const r = annualRatePct / 100;
       const insPerMonth = (principal * (insRatePct / 100)) / months;
 
       let monthlyPrincipalAndInterest;
       if (r === 0) {
-        // Zero-interest product — pure principal split
         monthlyPrincipalAndInterest = principal / months;
       } else {
-        // Standard annuity formula
         monthlyPrincipalAndInterest = principal * r / (1 - Math.pow(1 + r, -months));
       }
 
@@ -250,14 +217,12 @@ export default function Loan() {
     const dsrCeiling         = netIncome / 3;
     const isDsrValid         = netIncome > 0 ? monthlyInstallment <= dsrCeiling : true;
 
-    // Refinance gate: must have repaid >= 50% AND zero arrears AND zero interest
     const repaidPercent    = loanDisbursed > 0 ? (loanPaid / loanDisbursed) * 100 : 100;
     const hasExistingLoan  = currentLoan > 0;
     const canRefinance     = hasExistingLoan && daysInArrears === 0
                              && outstandingInterest === 0 && repaidPercent >= 50;
     const refinanceBlocked = hasExistingLoan && !canRefinance;
 
-    // Compliance verdict
     let isEligible = false;
     let complianceRemark = "Fill in all fields to see eligibility verdict.";
 
@@ -313,7 +278,6 @@ export default function Loan() {
       const today = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
       const refNo = `LOAN-${memberNo}-${Date.now().toString().slice(-6)}`;
 
-      // ── Header ──────────────────────────────────────────────────────────
       doc.addImage(logo, "PNG", 14, 10, 26, 26);
       doc.setFillColor(...GREEN);
       doc.rect(42, 10, W - 56, 12, "F");
@@ -363,7 +327,6 @@ export default function Loan() {
         y = doc.lastAutoTable.finalY + 6;
       };
 
-      // ── Section 1: Member Profile ────────────────────────────────────────
       sectionHeader("SECTION 1 — MEMBER PROFILE");
       tbl([
         ["Full Legal Name:",   member?.name        || "—", "Member No:",      memberNo || "—"],
@@ -374,7 +337,6 @@ export default function Loan() {
                                                          "Credit Score:",   `${finance.score} / 100`],
       ]);
 
-      // ── Section 2: Account Standing ──────────────────────────────────────
       sectionHeader("SECTION 2 — CURRENT ACCOUNT STANDING");
       tbl([
         ["Savings Balance (A/C 1018):",       `KES ${finance.savings.toLocaleString()}`,
@@ -391,7 +353,6 @@ export default function Loan() {
            : "N/A — No existing loan"],
       ]);
 
-      // ── Section 3: Loan Application Details ─────────────────────────────
       sectionHeader("SECTION 3 — LOAN APPLICATION DETAILS");
       const hasApp = !!form.loan_type && Number(form.amount) > 0;
       if (hasApp) {
@@ -408,7 +369,6 @@ export default function Loan() {
           ["Loan Purpose:",           form.purpose || "—", "", ""],
         ]);
 
-        // Charges breakdown table
         autoTable(doc, {
           startY: y,
           margin: { left: 14, right: 14 },
@@ -439,7 +399,6 @@ export default function Loan() {
         });
         y = doc.lastAutoTable.finalY + 6;
 
-        // ── Section 4: Repayment Schedule (Reducing Balance) ─────────────
         if (finance.isEligible && finance.schedule.length > 0) {
           if (y > 220) { doc.addPage(); y = 20; }
           sectionHeader("SECTION 4 — INDICATIVE REPAYMENT SCHEDULE (REDUCING BALANCE)");
@@ -485,7 +444,6 @@ export default function Loan() {
         y += 8;
       }
 
-      // ── Section 5: Charge Schedule ───────────────────────────────────────
       if (y > 220) { doc.addPage(); y = 20; }
       sectionHeader("SECTION 5 — TRANSACTION PROCESSING CHARGE SCHEDULE");
       autoTable(doc, {
@@ -506,7 +464,6 @@ export default function Loan() {
       });
       y = doc.lastAutoTable.finalY + 8;
 
-      // ── Section 6: Declaration & Signatures ──────────────────────────────
       if (y > 210) { doc.addPage(); y = 20; }
       sectionHeader("SECTION 6 — MEMBER DECLARATION & OATH");
       doc.setFont("helvetica", "normal");
@@ -531,7 +488,6 @@ export default function Loan() {
       y += 6;
       if (y > 240) { doc.addPage(); y = 20; }
 
-      // Signature boxes
       const boxes = [
         { label: "Applicant Signature & Date",        sub: `Name: ${member?.name || "____________________"}`, x: 14 },
         { label: "Guarantor 1 Signature & Date",      sub: `ID: ${form.guarantor_1_no || "____________________"}`,    x: 80 },
@@ -559,7 +515,6 @@ export default function Loan() {
         14, y, { maxWidth: W - 28 }
       );
 
-      // ── Footer on every page ─────────────────────────────────────────────
       const totalPages = doc.internal.getNumberOfPages();
       for (let p = 1; p <= totalPages; p++) {
         doc.setPage(p);
@@ -637,7 +592,6 @@ export default function Loan() {
       if (!finance.isEligible)     return alert(`Cannot submit: ${finance.complianceRemark}`);
       setLoading(true);
 
-      // Guarantor validation
       if (form.security_type === "Guarantor") {
         if (!form.guarantor_1_no) throw new Error("Primary guarantor is required.");
         const { data: gLedger } = await supabase
@@ -662,7 +616,6 @@ export default function Loan() {
           throw new Error(`Guarantor ${form.guarantor_1_no} has an active loan balance or arrears and cannot stand as guarantor.`);
       }
 
-      // File uploads
       const docUrls = [];
       for (const f of files) {
         const path = `${memberNo}/${Date.now()}-${f.name}`;
@@ -720,9 +673,9 @@ export default function Loan() {
     const d = Number(t.debit_account_id), c = Number(t.credit_account_id);
     if (d === LOAN_ACCOUNT     && c !== LOAN_ACCOUNT)     return { label: "Loan Disbursement",      cls: "bg-amber-50 text-amber-700 border-amber-200" };
     if (c === LOAN_ACCOUNT     && d !== LOAN_ACCOUNT)     return { label: "Principal Repayment",    cls: "bg-emerald-50 text-emerald-700 border-emerald-200" };
-    if (c === INTEREST_ACCOUNT)                           return { label: "Interest Charged",       cls: "bg-orange-50 text-orange-700 border-orange-200" };
-    if (d === INTEREST_ACCOUNT)                           return { label: "Interest Paid",          cls: "bg-blue-50 text-blue-700 border-blue-200" };
-    return { label: "Transaction", cls: "bg-slate-50 text-slate-600 border-slate-200" };
+    if (c === INTEREST_ACCOUNT)                           return { label: "Interest Charged",       cls: "bg-amber-50 text-amber-700 border-amber-200" };
+    if (d === INTEREST_ACCOUNT)                           return { label: "Interest Paid",          cls: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+    return { label: "Transaction", cls: "bg-stone-50 text-stone-600 border-stone-200" };
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -733,17 +686,17 @@ export default function Loan() {
     <div className="loan-container main-content-fade p-6 max-w-7xl mx-auto space-y-6">
 
       {/* HEADER */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-slate-100 rounded-2xl p-4 shadow-sm gap-2">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-amber-100 rounded-2xl p-4 shadow-sm gap-2">
         <div>
-          <span className="text-[10px] font-black tracking-widest text-emerald-800 uppercase bg-emerald-50 px-2.5 py-1 rounded-md">
+          <span className="text-[10px] font-black tracking-widest text-amber-800 uppercase bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-md">
             SASRA Real-Time Ledger Node
           </span>
-          <h1 className="text-xl font-black text-slate-800 tracking-tight uppercase mt-1.5">
+          <h1 className="text-xl font-black text-stone-800 tracking-tight uppercase mt-1.5">
             {dataReady ? (member?.name || memberNo) : "Loading account…"}
           </h1>
-          {memberNo && <p className="text-[11px] text-slate-400 font-mono mt-0.5">Member No: {memberNo}</p>}
+          {memberNo && <p className="text-[11px] text-stone-400 font-mono mt-0.5">Member No: {memberNo}</p>}
         </div>
-        <p className="text-xs font-mono font-bold text-slate-400">
+        <p className="text-xs font-mono font-bold text-stone-400">
           {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
         </p>
       </div>
@@ -751,50 +704,50 @@ export default function Loan() {
       {/* DASHBOARD CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
 
-        <div className="bg-white border border-slate-100 rounded-3xl p-5 border-l-4 border-green-700 shadow-sm space-y-1">
-          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Savings Balance (1018)</h4>
-          <h2 className="text-2xl font-black text-slate-800 font-mono">KES {finance.savings.toLocaleString()}</h2>
-          <p className="text-[10px] text-emerald-800 font-extrabold uppercase tracking-wider">
+        <div className="bg-white border border-amber-100 rounded-3xl p-5 border-l-4 border-l-green-700 shadow-sm space-y-1">
+          <h4 className="text-[11px] font-bold uppercase tracking-wider text-stone-400">Savings Balance (1018)</h4>
+          <h2 className="text-2xl font-black text-stone-800 font-mono">KES {finance.savings.toLocaleString()}</h2>
+          <p className="text-[10px] text-green-800 font-extrabold uppercase tracking-wider">
             Multiplier: {finance.multiplier}x &nbsp;·&nbsp; Max Cap: KES {Math.round(finance.savings * finance.multiplier).toLocaleString()}
           </p>
         </div>
 
-        <div className="bg-white border border-slate-100 rounded-3xl p-5 border-l-4 border-slate-600 shadow-sm space-y-1">
-          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Loan Principal (1011)</h4>
-          <h2 className="text-2xl font-black text-slate-800 font-mono">KES {finance.currentLoan.toLocaleString()}</h2>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+        <div className="bg-white border border-amber-100 rounded-3xl p-5 border-l-4 border-l-amber-500 shadow-sm space-y-1">
+          <h4 className="text-[11px] font-bold uppercase tracking-wider text-stone-400">Loan Principal (1011)</h4>
+          <h2 className="text-2xl font-black text-stone-800 font-mono">KES {finance.currentLoan.toLocaleString()}</h2>
+          <p className="text-[10px] text-stone-500 font-bold uppercase tracking-wider">
             Disbursed: {finance.loanDisbursed.toLocaleString()} &nbsp;·&nbsp; Repaid: {finance.loanPaid.toLocaleString()}
           </p>
         </div>
 
-        <div className={`bg-white border border-slate-100 rounded-3xl p-5 border-l-4 shadow-sm space-y-1 ${finance.outstandingInterest > 0 ? "border-orange-500" : "border-emerald-500"}`}>
-          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Interest Outstanding (1020)</h4>
-          <h2 className={`text-2xl font-black font-mono ${finance.outstandingInterest > 0 ? "text-orange-600" : "text-slate-800"}`}>
+        <div className={`bg-white border border-amber-100 rounded-3xl p-5 border-l-4 shadow-sm space-y-1 ${finance.outstandingInterest > 0 ? "border-l-amber-600" : "border-l-emerald-500"}`}>
+          <h4 className="text-[11px] font-bold uppercase tracking-wider text-stone-400">Interest Outstanding (1020)</h4>
+          <h2 className={`text-2xl font-black font-mono ${finance.outstandingInterest > 0 ? "text-amber-700" : "text-stone-800"}`}>
             KES {finance.outstandingInterest.toLocaleString()}
           </h2>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+          <p className="text-[10px] text-stone-500 font-bold uppercase tracking-wider">
             Charged: {finance.interestCharged.toLocaleString()} &nbsp;·&nbsp; Paid: {finance.interestPaid.toLocaleString()}
           </p>
         </div>
 
-        <div className={`bg-white border border-slate-100 rounded-3xl p-5 border-l-4 shadow-sm space-y-1 ${finance.daysInArrears > 0 ? "border-rose-600 bg-rose-50/30" : "border-emerald-600"}`}>
-          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Arrears Status</h4>
-          <h2 className={`text-2xl font-black font-mono ${finance.daysInArrears > 0 ? "text-rose-700 animate-pulse" : "text-slate-800"}`}>
+        <div className={`bg-white border border-amber-100 rounded-3xl p-5 border-l-4 shadow-sm space-y-1 ${finance.daysInArrears > 0 ? "border-l-rose-600 bg-rose-50/30" : "border-l-emerald-600"}`}>
+          <h4 className="text-[11px] font-bold uppercase tracking-wider text-stone-400">Arrears Status</h4>
+          <h2 className={`text-2xl font-black font-mono ${finance.daysInArrears > 0 ? "text-rose-700 animate-pulse" : "text-stone-800"}`}>
             {finance.arrearsClass}
           </h2>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            {finance.daysInArrears} Days &nbsp;·&nbsp; Risk: <span className="text-slate-700">{finance.riskRating}</span>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+            {finance.daysInArrears} Days &nbsp;·&nbsp; Risk: <span className="text-stone-700">{finance.riskRating}</span>
           </p>
         </div>
       </div>
 
       {/* TOTAL OWED BANNER */}
       {finance.totalOutstanding > 0 && (
-        <div className="bg-slate-800 text-white rounded-2xl px-5 py-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-          <div className="text-[11px] font-bold uppercase tracking-widest text-slate-300">Total Amount Owed (Principal + Interest)</div>
-          <div className="text-xl font-black font-mono">KES {finance.totalOutstanding.toLocaleString()}</div>
+        <div className="bg-green-900 text-white rounded-2xl px-5 py-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border border-amber-500/30">
+          <div className="text-[11px] font-bold uppercase tracking-widest text-amber-200">Total Amount Owed (Principal + Interest)</div>
+          <div className="text-xl font-black font-mono text-white">KES {finance.totalOutstanding.toLocaleString()}</div>
           {finance.hasExistingLoan && (
-            <div className={`text-[10px] font-bold uppercase px-3 py-1 rounded-full ${finance.canRefinance ? "bg-blue-500 text-white" : "bg-rose-500 text-white"}`}>
+            <div className={`text-[10px] font-bold uppercase px-3 py-1 rounded-full ${finance.canRefinance ? "bg-amber-500 text-green-950" : "bg-rose-500 text-white"}`}>
               {finance.canRefinance
                 ? `♻ Refinance Eligible — ${finance.repaidPercent.toFixed(1)}% repaid`
                 : `🔒 Refinance Blocked — ${finance.repaidPercent.toFixed(1)}% repaid (need 50%)`}
@@ -809,14 +762,14 @@ export default function Loan() {
           onClick={() => { setShowApply(true); setShowStatement(false); }}>
           Apply for Loan
         </button>
-        <button className="bg-slate-800 hover:bg-slate-900 font-bold text-xs tracking-tight rounded-xl px-5 py-3 transition text-white shadow-sm cursor-pointer"
+        <button className="bg-amber-600 hover:bg-amber-700 font-bold text-xs tracking-tight rounded-xl px-5 py-3 transition text-white shadow-sm cursor-pointer"
           onClick={() => { setShowStatement(true); setShowApply(false); }}>
           View Statement
         </button>
-        <button className="bg-white border border-slate-200 text-slate-500 font-bold text-xs tracking-tight rounded-xl px-5 py-3 transition shadow-sm cursor-not-allowed relative group" disabled
+        <button className="bg-white border border-amber-200 text-stone-500 font-bold text-xs tracking-tight rounded-xl px-5 py-3 transition shadow-sm cursor-not-allowed relative group" disabled
           title="Open the Apply form, fill in loan details, then use the Download button inside">
           Download Agreement PDF
-          <span className="absolute -top-10 left-0 w-72 bg-slate-800 text-white text-[10px] rounded-lg px-3 py-2 opacity-0 group-hover:opacity-100 transition pointer-events-none z-20">
+          <span className="absolute -top-10 left-0 w-72 bg-green-900 text-white text-[10px] rounded-lg px-3 py-2 opacity-0 group-hover:opacity-100 transition pointer-events-none z-20">
             Fill the Apply form first, then click ⬇ Download Agreement PDF inside the form
           </span>
         </button>
@@ -824,17 +777,17 @@ export default function Loan() {
 
       {/* ── APPLY MODAL ─────────────────────────────────────────────────────── */}
       {showApply && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="w-full max-w-3xl bg-white border border-slate-200 rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-green-950/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="w-full max-w-3xl bg-white border border-amber-200 rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto">
 
             {/* Modal Header */}
-            <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 rounded-t-3xl z-10">
+            <div className="sticky top-0 bg-white border-b border-amber-100 px-6 py-4 rounded-t-3xl z-10">
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">Umova SACCO — Credit Application</h3>
-                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">All parameters validated live against SASRA rules</p>
+                  <h3 className="text-sm font-black text-stone-800 uppercase tracking-tight">Umova SACCO — Credit Application</h3>
+                  <p className="text-[11px] text-stone-400 font-medium mt-0.5">All parameters validated live against SASRA rules</p>
                 </div>
-                <button className="text-slate-400 hover:text-slate-600 text-xl font-bold cursor-pointer leading-none"
+                <button className="text-stone-400 hover:text-stone-600 text-xl font-bold cursor-pointer leading-none"
                   onClick={() => setShowApply(false)}>✕</button>
               </div>
             </div>
@@ -843,7 +796,7 @@ export default function Loan() {
 
               {/* Refinance Notice */}
               {finance.hasExistingLoan && (
-                <div className={`rounded-2xl px-4 py-3 border text-xs font-semibold flex items-start gap-3 ${finance.canRefinance ? "bg-blue-50 border-blue-200 text-blue-900" : "bg-rose-50 border-rose-200 text-rose-900"}`}>
+                <div className={`rounded-2xl px-4 py-3 border text-xs font-semibold flex items-start gap-3 ${finance.canRefinance ? "bg-amber-50 border-amber-300 text-amber-900" : "bg-rose-50 border-rose-200 text-rose-900"}`}>
                   <span className="text-lg leading-none mt-0.5">{finance.canRefinance ? "♻️" : "🔒"}</span>
                   <div>
                     <div className="font-black uppercase text-[10px] tracking-wider mb-0.5">
@@ -865,8 +818,8 @@ export default function Loan() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">Loan Product</label>
-                  <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-green-700"
+                  <label className="text-[10px] font-bold uppercase text-stone-400 tracking-wider block mb-1">Loan Product</label>
+                  <select className="w-full bg-amber-50/60 border border-amber-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-stone-700 focus:outline-none focus:ring-2 focus:ring-green-700"
                     name="loan_type" value={form.loan_type} onChange={handleInputChange}>
                     <option value="">— Select Product —</option>
                     {Object.entries(finance.products).map(([name, p]) => (
@@ -878,32 +831,32 @@ export default function Loan() {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">Amount (KES)</label>
-                  <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-green-700"
+                  <label className="text-[10px] font-bold uppercase text-stone-400 tracking-wider block mb-1">Amount (KES)</label>
+                  <input className="w-full bg-amber-50/60 border border-amber-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-stone-700 focus:outline-none focus:ring-2 focus:ring-green-700"
                     type="number" name="amount" placeholder="e.g. 50000" value={form.amount} onChange={handleInputChange} />
                   {prod && reqAmt > 0 && (
-                    <p className="text-[10px] text-slate-400 mt-0.5">
+                    <p className="text-[10px] text-stone-400 mt-0.5">
                       Max: KES {Math.round(prod.maxAmount).toLocaleString()}
                     </p>
                   )}
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">Duration (Months)</label>
-                  <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-green-700"
+                  <label className="text-[10px] font-bold uppercase text-stone-400 tracking-wider block mb-1">Duration (Months)</label>
+                  <input className="w-full bg-amber-50/60 border border-amber-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-stone-700 focus:outline-none focus:ring-2 focus:ring-green-700"
                     type="number" name="duration" placeholder="e.g. 12" value={form.duration} onChange={handleInputChange} />
-                  {prod && <p className="text-[10px] text-slate-400 mt-0.5">Max: {prod.maxDuration} months</p>}
+                  {prod && <p className="text-[10px] text-stone-400 mt-0.5">Max: {prod.maxDuration} months</p>}
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">Net Monthly Income (KES)</label>
-                  <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-green-700"
+                  <label className="text-[10px] font-bold uppercase text-stone-400 tracking-wider block mb-1">Net Monthly Income (KES)</label>
+                  <input className="w-full bg-amber-50/60 border border-amber-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-stone-700 focus:outline-none focus:ring-2 focus:ring-green-700"
                     type="number" name="net_income" placeholder="Verified net pay" value={form.net_income} onChange={handleInputChange} />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">Security / Collateral Type</label>
-                  <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-green-700"
+                  <label className="text-[10px] font-bold uppercase text-stone-400 tracking-wider block mb-1">Security / Collateral Type</label>
+                  <select className="w-full bg-amber-50/60 border border-amber-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-stone-700 focus:outline-none focus:ring-2 focus:ring-green-700"
                     name="security_type" value={form.security_type} onChange={handleInputChange}>
                     <option value="">— Select —</option>
                     <option value="Deposits">Internal Savings (A/C 1018)</option>
@@ -915,8 +868,8 @@ export default function Loan() {
 
                 {form.security_type === "Guarantor" ? (
                   <div>
-                    <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">Primary Guarantor</label>
-                    <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-green-700"
+                    <label className="text-[10px] font-bold uppercase text-stone-400 tracking-wider block mb-1">Primary Guarantor</label>
+                    <select className="w-full bg-amber-50/60 border border-amber-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-stone-700 focus:outline-none focus:ring-2 focus:ring-green-700"
                       name="guarantor_1_no" value={form.guarantor_1_no} onChange={handleInputChange}>
                       <option value="">— Select Guarantor —</option>
                       {allMembers.filter((m) => m.member_no !== memberNo).map((m) => (
@@ -926,8 +879,8 @@ export default function Loan() {
                   </div>
                 ) : (
                   <div>
-                    <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">Collateral Market Value (KES)</label>
-                    <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-green-700 disabled:opacity-40"
+                    <label className="text-[10px] font-bold uppercase text-stone-400 tracking-wider block mb-1">Collateral Market Value (KES)</label>
+                    <input className="w-full bg-amber-50/60 border border-amber-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-stone-700 focus:outline-none focus:ring-2 focus:ring-green-700 disabled:opacity-40"
                       type="number" name="security_value" placeholder="Appraised value"
                       value={form.security_value} onChange={handleInputChange}
                       disabled={form.security_type === "Deposits"} />
@@ -938,8 +891,8 @@ export default function Loan() {
               {/* Secondary Guarantor */}
               {form.security_type === "Guarantor" && (
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">Secondary Guarantor (Optional)</label>
-                  <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-green-700"
+                  <label className="text-[10px] font-bold uppercase text-stone-400 tracking-wider block mb-1">Secondary Guarantor (Optional)</label>
+                  <select className="w-full bg-amber-50/60 border border-amber-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-stone-700 focus:outline-none focus:ring-2 focus:ring-green-700"
                     name="guarantor_2_no" value={form.guarantor_2_no} onChange={handleInputChange}>
                     <option value="">— Optional —</option>
                     {allMembers.filter((m) => m.member_no !== memberNo && m.member_no !== form.guarantor_1_no).map((m) => (
@@ -951,21 +904,21 @@ export default function Loan() {
 
               {/* Purpose */}
               <div>
-                <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">Loan Purpose</label>
-                <textarea className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-green-700"
+                <label className="text-[10px] font-bold uppercase text-stone-400 tracking-wider block mb-1">Loan Purpose</label>
+                <textarea className="w-full bg-amber-50/60 border border-amber-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-stone-700 focus:outline-none focus:ring-2 focus:ring-green-700"
                   name="purpose" rows="2" placeholder="Describe the intended use of funds..."
                   value={form.purpose} onChange={handleInputChange} />
               </div>
 
               {/* File Upload */}
               <div>
-                <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
+                <label className="text-[10px] font-bold uppercase text-stone-400 tracking-wider block mb-1">
                   Supporting Documents (ID, Payslip, Bank Statement)
                 </label>
                 <input type="file" multiple onChange={(e) => setFiles([...e.target.files])}
-                  className="w-full text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-2 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-green-800 file:text-white cursor-pointer" />
+                  className="w-full text-xs text-stone-500 bg-amber-50/60 border border-amber-200 rounded-xl p-2 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-green-800 file:text-white cursor-pointer" />
                 {files.length > 0 && (
-                  <p className="text-[10px] text-slate-400 mt-1">{files.length} file(s): {Array.from(files).map((f) => f.name).join(", ")}</p>
+                  <p className="text-[10px] text-stone-400 mt-1">{files.length} file(s): {Array.from(files).map((f) => f.name).join(", ")}</p>
                 )}
               </div>
 
@@ -973,12 +926,12 @@ export default function Loan() {
               {prod && (
                 <div className={`rounded-2xl border p-4 space-y-3 text-xs ${finance.isEligible ? "bg-emerald-50 border-emerald-200" : "bg-rose-50 border-rose-200"}`}>
                   <div className="flex justify-between items-center border-b border-current/10 pb-2">
-                    <span className="font-black uppercase text-[10px] tracking-wider text-slate-700">SASRA Compliance Engine</span>
+                    <span className="font-black uppercase text-[10px] tracking-wider text-stone-700">SASRA Compliance Engine</span>
                     <span className={`font-black text-[10px] uppercase tracking-wider ${finance.isEligible ? "text-emerald-700" : "text-rose-700 animate-pulse"}`}>
                       {finance.isEligible ? "✓ APPROVED" : "✗ REJECTED"}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 font-mono text-[11px] text-slate-700">
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 font-mono text-[11px] text-stone-700">
                     <div>Principal: <strong>KES {reqAmt.toLocaleString()}</strong></div>
                     <div>Total Interest (reducing bal, {prod.rate}%/yr): <strong>KES {Math.round(finance.totalInterest).toLocaleString()}</strong></div>
                     <div>Insurance ({prod.insRate || 0}%): <strong>KES {Math.round(finance.insuranceFee).toLocaleString()}</strong></div>
@@ -990,7 +943,7 @@ export default function Loan() {
                     <div>Max Cap: <strong>KES {Math.round(prod.maxAmount).toLocaleString()}</strong></div>
                     <div>Max Duration: <strong>{prod.maxDuration} months</strong></div>
                   </div>
-                  <div className="text-[10px] text-slate-500 bg-slate-100 rounded-lg px-3 py-1.5 font-medium">
+                  <div className="text-[10px] text-stone-500 bg-amber-50 rounded-lg px-3 py-1.5 font-medium">
                     Tx charge tiers: ≤500=KES10 | 501–1K=KES15 | 1K–5K=KES25 | 5K–10K=KES35 | &gt;10K=KES100
                   </div>
                   <div className={`text-[11px] font-bold pt-1 border-t border-current/10 ${finance.isEligible ? "text-emerald-800" : "text-rose-800"}`}>
@@ -1002,10 +955,10 @@ export default function Loan() {
               {/* Live Reducing Balance Mini-Schedule */}
               {finance.schedule.length > 0 && finance.isEligible && (
                 <div className="space-y-2">
-                  <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                  <h4 className="text-[10px] font-black uppercase tracking-wider text-stone-500">
                     Repayment Schedule — Reducing Balance ({finance.schedule.length} months)
                   </h4>
-                  <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <div className="border border-amber-200 rounded-xl overflow-hidden">
                     <div className="max-h-52 overflow-y-auto">
                       <table className="min-w-full text-[10px] font-mono">
                         <thead className="bg-green-800 text-white sticky top-0">
@@ -1015,25 +968,25 @@ export default function Loan() {
                             ))}
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-amber-100">
                           {finance.schedule.map((r) => (
-                            <tr key={r.month} className={`${r.month % 2 === 0 ? "bg-slate-50" : "bg-white"} hover:bg-emerald-50/40`}>
-                              <td className="px-2 py-1.5 font-bold text-slate-600">Month {r.month}</td>
-                              <td className="px-2 py-1.5 text-right text-slate-700">{r.principal.toLocaleString()}</td>
-                              <td className="px-2 py-1.5 text-right text-orange-600 font-semibold">{r.interest.toLocaleString()}</td>
-                              <td className="px-2 py-1.5 text-right text-slate-500">{r.insurance.toLocaleString()}</td>
-                              <td className="px-2 py-1.5 text-right font-bold text-slate-800">{r.total.toLocaleString()}</td>
+                            <tr key={r.month} className={`${r.month % 2 === 0 ? "bg-amber-50/50" : "bg-white"} hover:bg-emerald-50/40`}>
+                              <td className="px-2 py-1.5 font-bold text-stone-600">Month {r.month}</td>
+                              <td className="px-2 py-1.5 text-right text-stone-700">{r.principal.toLocaleString()}</td>
+                              <td className="px-2 py-1.5 text-right text-amber-700 font-semibold">{r.interest.toLocaleString()}</td>
+                              <td className="px-2 py-1.5 text-right text-stone-500">{r.insurance.toLocaleString()}</td>
+                              <td className="px-2 py-1.5 text-right font-bold text-stone-800">{r.total.toLocaleString()}</td>
                               <td className="px-2 py-1.5 text-right text-emerald-700 font-semibold">{r.balance.toLocaleString()}</td>
                             </tr>
                           ))}
                         </tbody>
-                        <tfoot className="bg-slate-800 text-white text-[10px] font-black">
+                        <tfoot className="bg-green-900 text-white text-[10px] font-black">
                           <tr>
                             <td className="px-2 py-2">TOTAL</td>
                             <td className="px-2 py-2 text-right">
                               {finance.schedule.reduce((s,r)=>s+r.principal,0).toLocaleString()}
                             </td>
-                            <td className="px-2 py-2 text-right text-orange-300">
+                            <td className="px-2 py-2 text-right text-amber-300">
                               {Math.round(finance.totalInterest).toLocaleString()}
                             </td>
                             <td className="px-2 py-2 text-right">
@@ -1048,14 +1001,14 @@ export default function Loan() {
                       </table>
                     </div>
                   </div>
-                  <p className="text-[10px] text-slate-400 font-medium">
+                  <p className="text-[10px] text-stone-400 font-medium">
                     Interest computed on reducing balance at {finance.currentProduct?.rate}% per month on outstanding balance.
                   </p>
                 </div>
               )}
 
               {/* Step Hint */}
-              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-[10px] font-semibold text-amber-800 flex items-center gap-2">
+              <div className="bg-amber-100 border border-amber-300 rounded-xl px-4 py-2.5 text-[10px] font-semibold text-amber-900 flex items-center gap-2">
                 <span>💡</span>
                 <span>
                   <strong>Step 1:</strong> Fill all fields above &nbsp;→&nbsp;
@@ -1066,7 +1019,7 @@ export default function Loan() {
 
               {/* Download Button */}
               <button
-                className="w-full py-3.5 rounded-xl font-black text-xs tracking-widest uppercase bg-slate-800 hover:bg-slate-700 text-white transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-40"
+                className="w-full py-3.5 rounded-xl font-black text-xs tracking-widest uppercase bg-green-900 hover:bg-green-800 text-white transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-40"
                 disabled={loading || !form.loan_type || !form.amount}
                 onClick={downloadOfficialLoanForm}
               >
@@ -1078,8 +1031,8 @@ export default function Loan() {
               </button>
 
               {/* Submit / Cancel */}
-              <div className="flex justify-between items-center pt-1 border-t border-slate-100">
-                <button className="px-5 py-2.5 rounded-xl font-bold text-xs bg-slate-100 text-slate-600 hover:bg-slate-200 transition cursor-pointer"
+              <div className="flex justify-between items-center pt-1 border-t border-amber-100">
+                <button className="px-5 py-2.5 rounded-xl font-bold text-xs bg-amber-50 text-stone-600 hover:bg-amber-100 transition cursor-pointer"
                   disabled={loading} onClick={() => setShowApply(false)}>Cancel</button>
                 <button
                   className="px-7 py-2.5 rounded-xl font-bold text-xs bg-green-900 text-white hover:bg-green-800 shadow-sm transition disabled:opacity-40 cursor-pointer"
@@ -1096,61 +1049,61 @@ export default function Loan() {
 
       {/* ── STATEMENT MODAL ──────────────────────────────────────────────────── */}
       {showStatement && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="w-full max-w-5xl bg-white border border-slate-200 rounded-3xl shadow-2xl max-h-[92vh] flex flex-col">
+        <div className="fixed inset-0 bg-green-950/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="w-full max-w-5xl bg-white border border-amber-200 rounded-3xl shadow-2xl max-h-[92vh] flex flex-col">
 
-            <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 rounded-t-3xl flex justify-between items-start">
+            <div className="sticky top-0 bg-white border-b border-amber-100 px-6 py-4 rounded-t-3xl flex justify-between items-start">
               <div>
-                <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">Loan & Interest Statement</h3>
-                <p className="text-[11px] text-slate-400 font-medium mt-0.5">Accounts 1011 (Principal) · 1020 (Interest) — {member?.name || memberNo}</p>
+                <h3 className="text-sm font-black text-stone-800 uppercase tracking-tight">Loan & Interest Statement</h3>
+                <p className="text-[11px] text-stone-400 font-medium mt-0.5">Accounts 1011 (Principal) · 1020 (Interest) — {member?.name || memberNo}</p>
               </div>
               <div className="flex items-center gap-3">
                 <button className="px-4 py-2 rounded-xl text-xs font-bold bg-green-800 text-white hover:bg-green-700 cursor-pointer transition"
                   onClick={downloadStatement}>⬇ Export PDF</button>
-                <button className="text-slate-400 hover:text-slate-600 text-xl font-bold cursor-pointer leading-none"
+                <button className="text-stone-400 hover:text-stone-600 text-xl font-bold cursor-pointer leading-none"
                   onClick={() => setShowStatement(false)}>✕</button>
               </div>
             </div>
 
             {/* Summary strip */}
-            <div className="grid grid-cols-3 gap-px bg-slate-100 text-center text-xs">
+            <div className="grid grid-cols-3 gap-px bg-amber-100 text-center text-xs">
               {[
                 ["Principal Outstanding", `KES ${finance.currentLoan.toLocaleString()}`, finance.currentLoan > 0 ? "text-rose-600" : "text-emerald-700"],
-                ["Interest Outstanding",  `KES ${finance.outstandingInterest.toLocaleString()}`, finance.outstandingInterest > 0 ? "text-orange-600" : "text-emerald-700"],
-                ["Total Owed",            `KES ${finance.totalOutstanding.toLocaleString()}`, finance.totalOutstanding > 0 ? "text-slate-800" : "text-emerald-700"],
+                ["Interest Outstanding",  `KES ${finance.outstandingInterest.toLocaleString()}`, finance.outstandingInterest > 0 ? "text-amber-700" : "text-emerald-700"],
+                ["Total Owed",            `KES ${finance.totalOutstanding.toLocaleString()}`, finance.totalOutstanding > 0 ? "text-stone-800" : "text-emerald-700"],
               ].map(([label, val, cls]) => (
                 <div key={label} className="bg-white py-3 px-4">
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</div>
+                  <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">{label}</div>
                   <div className={`text-lg font-black font-mono ${cls}`}>{val}</div>
                 </div>
               ))}
             </div>
 
             <div className="overflow-y-auto flex-1">
-              <table className="min-w-full divide-y divide-slate-100 text-xs text-left">
-                <thead className="bg-slate-50 sticky top-0">
+              <table className="min-w-full divide-y divide-amber-100 text-xs text-left">
+                <thead className="bg-amber-50 sticky top-0">
                   <tr>
                     {["Date", "Receipt No", "Description", "Type", "Amount (KES)"].map((h) => (
-                      <th key={h} className="px-4 py-3 text-[10px] font-black uppercase tracking-wider text-slate-500">{h}</th>
+                      <th key={h} className="px-4 py-3 text-[10px] font-black uppercase tracking-wider text-stone-500">{h}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody className="divide-y divide-amber-50">
                   {statementRows.length === 0 ? (
-                    <tr><td colSpan="5" className="px-4 py-10 text-center text-slate-400 font-semibold">No loan or interest transactions found.</td></tr>
+                    <tr><td colSpan="5" className="px-4 py-10 text-center text-stone-400 font-semibold">No loan or interest transactions found.</td></tr>
                   ) : statementRows.map((t, i) => {
                     const badge = getTxBadge(t);
                     return (
-                      <tr key={i} className="hover:bg-slate-50/70">
-                        <td className="px-4 py-3 font-mono text-slate-500 whitespace-nowrap">
+                      <tr key={i} className="hover:bg-amber-50/50">
+                        <td className="px-4 py-3 font-mono text-stone-500 whitespace-nowrap">
                           {new Date(t.transaction_date || t.created_at).toLocaleDateString("en-GB")}
                         </td>
-                        <td className="px-4 py-3 font-mono text-slate-400 text-[10px]">{t.receipt_no || "—"}</td>
-                        <td className="px-4 py-3 text-slate-600">{t.description || t.type || "—"}</td>
+                        <td className="px-4 py-3 font-mono text-stone-400 text-[10px]">{t.receipt_no || "—"}</td>
+                        <td className="px-4 py-3 text-stone-600">{t.description || t.type || "—"}</td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold border ${badge.cls}`}>{badge.label}</span>
                         </td>
-                        <td className="px-4 py-3 text-right font-bold font-mono text-slate-800">
+                        <td className="px-4 py-3 text-right font-bold font-mono text-stone-800">
                           {Number(t.amount).toLocaleString()}
                         </td>
                       </tr>
@@ -1158,13 +1111,13 @@ export default function Loan() {
                   })}
                 </tbody>
                 {statementRows.length > 0 && (
-                  <tfoot className="bg-slate-800 text-white text-[10px] font-black uppercase tracking-wide">
+                  <tfoot className="bg-green-900 text-white text-[10px] font-black uppercase tracking-wide">
                     <tr>
                       <td className="px-4 py-3" colSpan="3">Closing Balances</td>
                       <td className="px-4 py-3">Principal / Interest</td>
                       <td className="px-4 py-3 text-right">
                         <div>KES {finance.currentLoan.toLocaleString()}</div>
-                        <div className={finance.outstandingInterest > 0 ? "text-orange-300" : ""}>KES {finance.outstandingInterest.toLocaleString()}</div>
+                        <div className={finance.outstandingInterest > 0 ? "text-amber-300" : ""}>KES {finance.outstandingInterest.toLocaleString()}</div>
                       </td>
                     </tr>
                   </tfoot>
