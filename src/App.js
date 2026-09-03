@@ -1,11 +1,12 @@
 // src/App.js
 
 import React from "react";
-import { Routes, Route, Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "./Context/AuthContext";
+import { Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
+import { useAuth, STAFF_ROLES } from "./Context/AuthContext";
+import { useChama } from "./chama-erp-advanced/ChamaContext";
 
-import AuthPage      from "./components/Auth/AuthPage";
-import AdminLogin    from "./components/Auth/AdminLogin";
+import AuthPage      from "./components/Auth/AuthPage";     // now: first-time setup / forgot password only
+import UnifiedLogin  from "./components/Auth/UnifiedLogin"; // single entry point: member, staff, and chama
 import SetPassword   from "./components/Auth/SetPassword";
 import PublicSite    from "./Public/PublicSite";
 
@@ -25,7 +26,7 @@ import Statements    from "./components/Dashboard/Statements";
 // (ChamaRouter.js, ChamaDashboard.js, chamamembers.js, etc.) is imported
 // anywhere in this file anymore — that folder can be deleted from disk.
 // ─────────────────────────────────────────────
-import { ChamaProvider }        from "./chama-erp-advanced/ChamaContext";
+// ChamaProvider now wraps the app root in index.js, not imported here.
 import AuthGate                 from "./chama-erp-advanced/auth/AuthGate";
 import ChamaDashboardAdvanced   from "./chama-erp-advanced/ChamaDashboardAdvanced";
 import PlatformAdminGate        from "./chama-erp-advanced/platform-admin/PlatformAdminGate";
@@ -52,7 +53,20 @@ import AdminPayments          from "./Pages/Admin/Payments";
 import AdminSettings          from "./Pages/Admin/Settings";
 import AdminStoryDashboard    from "./Pages/Admin/StoryDashboard";
 
-const STAFF_ROLES = ["staff", "admin", "manager", "superadmin", "auditor", "teller"];
+// ─────────────────────────────────────────────
+// POS / INVENTORY (Universal Scanning Engine)
+// Self-contained under src/pos-erp/, mirroring the chama-erp-advanced
+// pattern: its own pages/hooks/services/scanning engine. It does NOT
+// get its own login — it's staff-only, so it rides the existing
+// StaffGuard/AdminLayout auth exactly like every other admin page below.
+// ─────────────────────────────────────────────
+import POSPage             from "./pos-erp/pages/POSPage";
+import ProductsPage        from "./pos-erp/pages/ProductsPage";
+import GoodsReceivingPage  from "./pos-erp/pages/GoodsReceivingPage";
+
+// STAFF_ROLES is imported from AuthContext.js — single source of truth,
+// also used by AdminLogin.js so the pre-signin role gate and the post-
+// signin routing gate never disagree.
 
 // ─────────────────────────────────────────────
 // UI LOADER
@@ -113,9 +127,10 @@ function MemberGuard() {
 // ─────────────────────────────────────────────
 function StaffGuard() {
   const { user, loading, role } = useAuth();
+  const location = useLocation();
 
   if (loading) return <Loader />;
-  if (!user) return <Navigate to="/admin-login" replace />;
+  if (!user) return <Navigate to="/admin-login" state={{ from: location.pathname }} replace />;
   if (!role) return <Loader />;
   if (role === "unassigned") return <Navigate to="/unassigned-onboarding" replace />;
   if (!STAFF_ROLES.includes(role)) return <Navigate to="/member/dashboard" replace />;
@@ -137,34 +152,50 @@ function PostLoginRedirect() {
   return <Navigate to="/" replace />;
 }
 
-function AdminLoginRoute() {
+function LoginRoute() {
+  // Single entry point for member, staff, and (via UnifiedLogin's phone
+  // path) chama identities. Redirect targets mirror the old
+  // AdminLoginRoute/MemberLoginRoute exactly, just merged into one guard.
   const { user, loading, role } = useAuth();
+  const { authStage } = useChama();
+  const location = useLocation();
+  const from = location.state?.from || "/admin/dashboard";
 
   if (loading) return <Loader />;
 
   if (user && role && STAFF_ROLES.includes(role)) {
-    return <Navigate to="/admin/dashboard" replace />;
+    return <Navigate to={from} replace />;
   }
   if (user && role === "member") {
     return <Navigate to="/member/dashboard" replace />;
   }
+  if (authStage === "authenticated") {
+    return <Navigate to="/chama" replace />;
+  }
 
-  return <AdminLogin />;
+  return <UnifiedLogin />;
 }
 
-function MemberLoginRoute() {
+function MemberSetupRoute() {
+  // AuthPage.js now only handles first-time password setup and the
+  // forgot-password flow (National ID verification) — plain login lives
+  // on UnifiedLogin at /login. Same "already signed in" guard as
+  // LoginRoute so a signed-in user can't land on a stale setup form.
   const { user, loading, role } = useAuth();
 
   if (loading) return <Loader />;
-
-  if (user && role === "member") {
-    return <Navigate to="/member/dashboard" replace />;
-  }
-  if (user && role && STAFF_ROLES.includes(role)) {
-    return <Navigate to="/admin/dashboard" replace />;
-  }
+  if (user && role === "member") return <Navigate to="/member/dashboard" replace />;
+  if (user && role && STAFF_ROLES.includes(role)) return <Navigate to="/admin/dashboard" replace />;
 
   return <AuthPage />;
+}
+
+function AdminLoginRedirect() {
+  // /admin-login kept alive purely so old bookmarks/links (including the
+  // "POS Login" button, though it now points straight at /login) still
+  // work — the real login for every identity is /login now.
+  const location = useLocation();
+  return <Navigate to="/login" state={location.state} replace />;
 }
 
 // ─────────────────────────────────────────────
@@ -177,25 +208,24 @@ function App() {
       <Route path="/unassigned-onboarding" element={<UnassignedOnboarding />} />
       <Route path="/set-password" element={<SetPassword />} />
 
-      <Route path="/login" element={<MemberLoginRoute />} />
-      <Route path="/admin-login" element={<AdminLoginRoute />} />
+      <Route path="/login" element={<LoginRoute />} />
+      <Route path="/member-login" element={<MemberSetupRoute />} />
+      <Route path="/admin-login" element={<AdminLoginRedirect />} />
 
       {/*
-        Chama ERP Advanced — self-contained: its own provider, its own
-        login gate, its own dashboard. AuthGate handles phone+password
-        login, multi-chama selection, and license checking on its own;
-        ChamaDashboardAdvanced only ever renders once all three have
-        passed. No route matching inside — it's a single-page sidebar
-        dashboard, not a sub-router, so "/chama" is enough (no /*).
+        Chama ERP Advanced — self-contained dashboard. ChamaProvider now
+        wraps the whole app (see index.js) instead of just this route,
+        because UnifiedLogin.js at /login needs useChama() for the phone-
+        login path. AuthGate still gates this route exactly as before —
+        it just redirects to /login for plain sign-in now instead of
+        rendering its own LoginPhone form (see AuthGate.js).
       */}
       <Route
         path="/chama"
         element={
-          <ChamaProvider>
-            <AuthGate>
-              <ChamaDashboardAdvanced />
-            </AuthGate>
-          </ChamaProvider>
+          <AuthGate>
+            <ChamaDashboardAdvanced />
+          </AuthGate>
         }
       />
 
@@ -252,6 +282,16 @@ function App() {
           <Route path="payments" element={<AdminPayments />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="stories" element={<AdminStoryDashboard />} />
+
+          {/* POS / Inventory (Universal Scanning Engine) — staff-only,
+              same StaffGuard/AdminLayout as everything else in this block.
+              Rides the same login as the rest of the admin area; the
+              "POS Login" button on the public site sends staff to
+              /login with state={{ from: "/admin/pos" }} so LoginRoute
+              lands them here instead of /admin/dashboard after signing in. */}
+          <Route path="pos" element={<POSPage />} />
+          <Route path="pos/products" element={<ProductsPage />} />
+          <Route path="pos/goods-receiving" element={<GoodsReceivingPage />} />
         </Route>
       </Route>
 

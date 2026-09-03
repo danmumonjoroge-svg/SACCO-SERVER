@@ -33,10 +33,16 @@ import {
   BarChart3,
   LayoutGrid,
   List,
+  ListChecks,
+  HandCoins,
 } from "lucide-react";
 import { format, parseISO, isPast, isFuture, isToday, differenceInDays } from "date-fns";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Toaster, toast } from "sonner";
+import {
+  formatKES, toCSV, CONTRIBUTION_SOURCES, PAYMENT_METHODS,
+  contributorDisplayName, outstandingAmount, pledgeStatusLabel, logAudit,
+} from "./welfareFormat";
 import "./WelfareEventPlanner.css";
 
 // ---------------------------------------------------------------------------
@@ -44,10 +50,6 @@ import "./WelfareEventPlanner.css";
 // ---------------------------------------------------------------------------
 function cn(...inputs) {
   return inputs.filter(Boolean).join(" ");
-}
-
-function formatKES(v) {
-  return `KES ${Number(v || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
 }
 
 function classForStatus(status) {
@@ -97,7 +99,8 @@ function useRealtimeEvents(chamaId) {
       .select("*")
       .eq("chama_id", chamaId)
       .order("event_date", { ascending: false });
-    if (!error) setEvents(data || []);
+    if (error) toast.error(`Couldn't load events: ${error.message}`);
+    else setEvents(data || []);
     setLoading(false);
   }, [chamaId]);
 
@@ -132,23 +135,26 @@ function useEventDetails(eventId) {
   const [contributions, setContributions] = useState([]);
   const [comments, setComments] = useState([]);
   const [attachments, setAttachments] = useState([]);
+  const [budgetLines, setBudgetLines] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!eventId) return;
     setLoading(true);
-    const [tRes, aRes, cRes, cmRes, atRes] = await Promise.all([
+    const [tRes, aRes, cRes, cmRes, atRes, blRes] = await Promise.all([
       supabase.from("welfare_event_tasks").select("*").eq("event_id", eventId).order("sort_order", { ascending: true }),
       supabase.from("welfare_event_attendance").select("*").eq("event_id", eventId),
       supabase.from("welfare_event_contributions").select("*").eq("event_id", eventId).order("paid_at", { ascending: false }),
       supabase.from("welfare_event_comments").select("*, member:member_id(name, avatar_url)").eq("event_id", eventId).order("created_at", { ascending: true }),
       supabase.from("welfare_event_attachments").select("*").eq("event_id", eventId).order("created_at", { ascending: false }),
+      supabase.from("welfare_event_budget_lines").select("*").eq("event_id", eventId).order("created_at", { ascending: true }),
     ]);
     setTasks(tRes.data || []);
     setAttendance(aRes.data || []);
     setContributions(cRes.data || []);
     setComments(cmRes.data || []);
     setAttachments(atRes.data || []);
+    setBudgetLines(blRes.data || []);
     setLoading(false);
   }, [eventId]);
 
@@ -161,11 +167,12 @@ function useEventDetails(eventId) {
       .on("postgres_changes", { event: "*", schema: "public", table: "welfare_event_contributions", filter: `event_id=eq.${eventId}` }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "welfare_event_comments", filter: `event_id=eq.${eventId}` }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "welfare_event_attendance", filter: `event_id=eq.${eventId}` }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "welfare_event_budget_lines", filter: `event_id=eq.${eventId}` }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [eventId, load]);
 
-  return { tasks, attendance, contributions, comments, attachments, loading, refresh: load, setTasks };
+  return { tasks, attendance, contributions, comments, attachments, budgetLines, loading, refresh: load, setTasks };
 }
 
 // ---------------------------------------------------------------------------
@@ -179,7 +186,7 @@ function EventAnalytics({ events, members }) {
     const byType = EVENT_TYPES.map((t) => ({
       ...t,
       count: events.filter((e) => e.event_type === t.value).length,
-      budget: events.filter((e) => e.event_type === t.value).reduce((s, e) => s + e.budget, 0),
+      budget: events.filter((e) => e.event_type === t.value).reduce((s, e) => s + (e.budget || 0), 0),
     }));
     const byStatus = STATUS_FLOW.map((s) => ({
       status: s,
@@ -404,7 +411,7 @@ export default function WelfareEventPlanner({ chamaId: chamaIdProp }) {
     if (!error && eventData) {
       const template = templates.find((t) => t.id === form.template_id);
       if (template?.default_tasks?.length) {
-        await supabase.from("welfare_event_tasks").insert(
+        const { error: taskErr } = await supabase.from("welfare_event_tasks").insert(
           template.default_tasks.map((t, i) => ({
             event_id: eventData.id,
             task: t.task,
@@ -413,6 +420,7 @@ export default function WelfareEventPlanner({ chamaId: chamaIdProp }) {
             sort_order: i,
           }))
         );
+        if (taskErr) toast.error(`Event created, but template tasks couldn't be added: ${taskErr.message}`);
       }
       toast.success("Event created successfully");
       setForm({ ...emptyForm });
@@ -425,6 +433,10 @@ export default function WelfareEventPlanner({ chamaId: chamaIdProp }) {
   };
 
   const exportCSV = () => {
+    if (filteredEvents.length === 0) {
+      toast.error("No events to export — clear or adjust your filters first");
+      return;
+    }
     const rows = filteredEvents.map((e) => ({
       Title: e.title,
       Type: e.event_type,
@@ -434,7 +446,9 @@ export default function WelfareEventPlanner({ chamaId: chamaIdProp }) {
       Status: e.status,
       Description: e.description || "",
     }));
-    const csv = [Object.keys(rows[0] || {}).join(","), ...rows.map((r) => Object.values(r).map((v) => `"${v}"`).join(","))].join("\n");
+    // toCSV properly escapes embedded quotes/commas/newlines (e.g. in Description),
+    // which the previous plain `"${v}"` template would corrupt.
+    const csv = toCSV(rows);
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -509,7 +523,7 @@ export default function WelfareEventPlanner({ chamaId: chamaIdProp }) {
           <option value="budget">Sort by Budget</option>
           <option value="created">Sort by Created</option>
         </select>
-        <button className="wep-export-btn" onClick={exportCSV} title="Export CSV">
+        <button className="wep-export-btn" onClick={exportCSV} title="Export CSV" disabled={filteredEvents.length === 0}>
           <Download size={15} /> Export
         </button>
       </div>
@@ -697,27 +711,87 @@ function EventDetailModal({
   onUpdate,
 }) {
   const { member } = useChama();
-  const { tasks, attendance, contributions, comments, attachments, loading, refresh, setTasks } = useEventDetails(event.id);
+  const { tasks, attendance, contributions, comments, attachments, budgetLines, loading, refresh, setTasks } = useEventDetails(event.id);
   const [newTask, setNewTask] = useState({ task: "", assignee_member_id: "", due_date: "", priority: "medium" });
   const [commentText, setCommentText] = useState("");
   const [actualCost, setActualCost] = useState(event.actual_cost ?? "");
+  const [newBudgetLine, setNewBudgetLine] = useState({ category: "", description: "", quantity: 1, unit_cost: "", responsible_member_id: "" });
+  const [contribSource, setContribSource] = useState({ source_type: "member", contributor_name: "", is_pledge: false });
   const fileInputRef = useRef(null);
 
   const memberName = (id) => members.find((m) => m.id === id)?.name || "Unassigned";
-  const totalContributions = contributions.reduce((s, c) => s + c.amount, 0);
+  const totalContributions = contributions.reduce((s, c) => s + Number(c.is_pledge ? (c.amount_received || 0) : c.amount), 0);
   const completionRate = tasks.length ? Math.round((tasks.filter((t) => t.status === "done").length / tasks.length) * 100) : 0;
 
   const advanceStatus = async (status) => {
+    const currentIndex = STATUS_FLOW.indexOf(event.status);
+    const targetIndex = STATUS_FLOW.indexOf(status);
+    // Guard against skipping steps forward (e.g. planned -> completed in one
+    // click). Moving backward or cancelling is still allowed — an official
+    // correcting a mistake shouldn't be blocked, only accidental skips are.
+    if (targetIndex > currentIndex + 1) {
+      toast.error(`Complete "${STATUS_FLOW[currentIndex + 1]}" before moving to "${status}".`);
+      return;
+    }
     await supabase.from("welfare_events").update({ status, updated_at: new Date().toISOString() }).eq("id", event.id);
+    await logAudit({
+      chamaId: event.chama_id, actorMemberId: member.id, module: "welfare_event", action: "status_changed",
+      entityId: event.id, previousValue: { status: event.status }, newValue: { status },
+    });
     toast.success(`Status updated to ${status}`);
     onUpdate();
   };
 
   const updateActualCost = async () => {
     if (actualCost === "") return;
+    const previous = event.actual_cost;
     await supabase.from("welfare_events").update({ actual_cost: Number(actualCost) }).eq("id", event.id);
+    await logAudit({
+      chamaId: event.chama_id, actorMemberId: member.id, module: "welfare_event", action: "actual_cost_updated",
+      entityId: event.id, previousValue: { actual_cost: previous }, newValue: { actual_cost: Number(actualCost) },
+    });
     toast.success("Actual cost updated");
     onUpdate();
+  };
+
+  // ---------------------------------------------------------------------------
+  // Budget line items
+  // ---------------------------------------------------------------------------
+  const totalBudgetLines = budgetLines.reduce((s, l) => s + Number(l.budget_amount || 0), 0);
+  const totalActualLines = budgetLines.reduce((s, l) => s + Number(l.actual_amount || 0), 0);
+
+  const addBudgetLine = async () => {
+    if (!newBudgetLine.category.trim()) { toast.error("Give the budget line a category."); return; }
+    const qty = Number(newBudgetLine.quantity) || 1;
+    const unitCost = Number(newBudgetLine.unit_cost) || 0;
+    const { error } = await supabase.from("welfare_event_budget_lines").insert([{
+      event_id: event.id,
+      category: newBudgetLine.category.trim(),
+      description: newBudgetLine.description.trim() || null,
+      quantity: qty,
+      unit_cost: unitCost,
+      budget_amount: qty * unitCost,
+      responsible_member_id: newBudgetLine.responsible_member_id || null,
+      created_by: member.id,
+    }]);
+    if (error) { toast.error(`Couldn't add budget line: ${error.message}`); return; }
+    setNewBudgetLine({ category: "", description: "", quantity: 1, unit_cost: "", responsible_member_id: "" });
+    toast.success("Budget line added");
+    refresh();
+  };
+
+  const updateBudgetLineActual = async (line, value) => {
+    if (value === "") return;
+    const { error } = await supabase.from("welfare_event_budget_lines").update({ actual_amount: Number(value), updated_at: new Date().toISOString() }).eq("id", line.id);
+    if (error) { toast.error(`Couldn't update actual amount: ${error.message}`); return; }
+    refresh();
+  };
+
+  const removeBudgetLine = async (lineId) => {
+    const { error } = await supabase.from("welfare_event_budget_lines").delete().eq("id", lineId);
+    if (error) { toast.error(`Couldn't remove line: ${error.message}`); return; }
+    toast.success("Budget line removed");
+    refresh();
   };
 
   const addTask = async () => {
@@ -779,21 +853,53 @@ function EventDetailModal({
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const amount = Number(fd.get("amount"));
-    const contributorId = fd.get("member_id");
-    if (!amount || !contributorId) return;
+    const sourceType = contribSource.source_type;
+    const isPledge = contribSource.is_pledge;
+    if (!amount) return;
+    if (sourceType === "member" && !fd.get("member_id")) { toast.error("Choose a member."); return; }
+    if ((sourceType === "external" || sourceType === "organization") && !contribSource.contributor_name.trim()) {
+      toast.error("Enter a contributor/organization name.");
+      return;
+    }
     await supabase.from("welfare_event_contributions").insert([{
       event_id: event.id,
-      member_id: contributorId,
+      source_type: sourceType,
+      member_id: sourceType === "member" ? fd.get("member_id") : null,
+      contributor_name: sourceType === "member" || sourceType === "anonymous" ? null : contribSource.contributor_name.trim(),
       amount,
+      is_pledge: isPledge,
+      pledged_amount: isPledge ? amount : null,
+      amount_received: isPledge ? 0 : amount,
       paid_at: new Date().toISOString(),
       note: fd.get("note") || null,
     }]);
-    toast.success("Contribution recorded");
+    toast.success(isPledge ? "Pledge recorded" : "Contribution recorded");
+    setContribSource({ source_type: "member", contributor_name: "", is_pledge: false });
     e.target.reset();
     refresh();
   };
 
+  const receiveEventPledgePayment = async (contribution) => {
+    const remaining = outstandingAmount(contribution);
+    const input = window.prompt(`Amount received now (outstanding: ${formatKES(remaining)})`, remaining);
+    if (input === null) return;
+    const amount = Number(input);
+    if (!amount || amount <= 0 || amount > remaining) { toast.error("Enter a valid amount up to the outstanding balance."); return; }
+    const { error } = await supabase.from("welfare_event_contributions")
+      .update({ amount_received: Number(contribution.amount_received || 0) + amount })
+      .eq("id", contribution.id);
+    if (error) { toast.error(`Couldn't record payment: ${error.message}`); return; }
+    toast.success("Pledge payment recorded");
+    refresh();
+  };
+
+  const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
+
   const uploadFile = async (file) => {
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error("File is too large — max size is 15MB");
+      return;
+    }
     const path = `${event.chama_id}/${event.id}/${Date.now()}_${file.name}`;
     const { error: upError } = await supabase.storage.from("event-attachments").upload(path, file);
     if (upError) { toast.error("Upload failed"); return; }
@@ -811,6 +917,7 @@ function EventDetailModal({
 
   const tabs = [
     { id: "tasks", label: `Tasks (${tasks.length})`, icon: CheckSquare },
+    { id: "budget", label: `Budget (${budgetLines.length})`, icon: ListChecks },
     { id: "attendance", label: `Attendance (${attendance.length})`, icon: Users },
     { id: "contributions", label: `Funds (${formatKES(totalContributions)})`, icon: Wallet },
     { id: "comments", label: `Comments (${comments.length})`, icon: MessageSquare },
@@ -951,6 +1058,62 @@ function EventDetailModal({
             </div>
           )}
 
+          {tab === "budget" && (
+            <div className="wep-budget">
+              <div className="wep-budget-summary">
+                <div><span>Overall budget</span><strong>{formatKES(event.budget)}</strong></div>
+                <div><span>Line items budgeted</span><strong>{formatKES(totalBudgetLines)}</strong></div>
+                <div><span>Line items actual</span><strong>{formatKES(totalActualLines)}</strong></div>
+                <div><span>Variance</span><strong className={totalActualLines > totalBudgetLines ? "over" : ""}>{formatKES(totalBudgetLines - totalActualLines)}</strong></div>
+              </div>
+
+              {canManage && (
+                <div className="wep-budget-add-row">
+                  <input placeholder="Category (e.g. Catering)" value={newBudgetLine.category} onChange={(e) => setNewBudgetLine((b) => ({ ...b, category: e.target.value }))} />
+                  <input placeholder="Description" value={newBudgetLine.description} onChange={(e) => setNewBudgetLine((b) => ({ ...b, description: e.target.value }))} />
+                  <input type="number" min="0" placeholder="Qty" value={newBudgetLine.quantity} onChange={(e) => setNewBudgetLine((b) => ({ ...b, quantity: e.target.value }))} />
+                  <input type="number" min="0" placeholder="Unit cost" value={newBudgetLine.unit_cost} onChange={(e) => setNewBudgetLine((b) => ({ ...b, unit_cost: e.target.value }))} />
+                  <select value={newBudgetLine.responsible_member_id} onChange={(e) => setNewBudgetLine((b) => ({ ...b, responsible_member_id: e.target.value }))}>
+                    <option value="">Responsible</option>
+                    {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  </select>
+                  <button className="wep-btn-icon" onClick={addBudgetLine}><Plus size={16} /></button>
+                </div>
+              )}
+
+              {budgetLines.length === 0 ? (
+                <p className="wep-empty-inline">No budget lines yet — add categories to break the overall budget down and track variance per item.</p>
+              ) : (
+                <div className="wep-budget-list">
+                  {budgetLines.map((l) => {
+                    const variance = Number(l.budget_amount || 0) - Number(l.actual_amount || 0);
+                    return (
+                      <div key={l.id} className="wep-budget-row">
+                        <div className="wep-budget-row-main">
+                          <strong>{l.category}</strong>
+                          {l.description && <span className="wep-budget-desc">{l.description}</span>}
+                          <span className="wep-budget-owner">{memberName(l.responsible_member_id)}</span>
+                        </div>
+                        <span className="wep-budget-planned">{formatKES(l.budget_amount)}</span>
+                        {canManage ? (
+                          <input
+                            type="number" min="0" className="wep-budget-actual-input" placeholder="Actual"
+                            defaultValue={l.actual_amount ?? ""}
+                            onBlur={(e) => updateBudgetLineActual(l, e.target.value)}
+                          />
+                        ) : (
+                          <span className="wep-budget-actual">{l.actual_amount !== null && l.actual_amount !== undefined ? formatKES(l.actual_amount) : "-"}</span>
+                        )}
+                        <span className={cn("wep-budget-variance", variance < 0 && "over")}>{formatKES(variance)}</span>
+                        {canManage && <button className="wep-task-remove" onClick={() => removeBudgetLine(l.id)}><Trash2 size={13} /></button>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {tab === "attendance" && (
             <div className="wep-attendance">
               <div className="wep-attendance-summary">
@@ -986,24 +1149,50 @@ function EventDetailModal({
             <div className="wep-contributions">
               {canManage && (
                 <form className="wep-contribution-form" onSubmit={addContribution}>
-                  <select name="member_id" required>
-                    <option value="">Member</option>
-                    {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  <select value={contribSource.source_type} onChange={(e) => setContribSource((s) => ({ ...s, source_type: e.target.value }))}>
+                    {CONTRIBUTION_SOURCES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
+                  {contribSource.source_type === "member" ? (
+                    <select name="member_id" required>
+                      <option value="">Member</option>
+                      {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                    </select>
+                  ) : contribSource.source_type !== "anonymous" ? (
+                    <input
+                      placeholder={contribSource.source_type === "organization" ? "Organization name" : "Contributor name"}
+                      value={contribSource.contributor_name}
+                      onChange={(e) => setContribSource((s) => ({ ...s, contributor_name: e.target.value }))}
+                    />
+                  ) : (
+                    <span className="wep-empty-inline">No identity recorded</span>
+                  )}
                   <input name="amount" type="number" min="1" placeholder="Amount (KES)" required />
                   <input name="note" placeholder="Note (optional)" />
+                  <label className="wep-field wep-checkbox wep-pledge-checkbox">
+                    <input type="checkbox" checked={contribSource.is_pledge} onChange={(e) => setContribSource((s) => ({ ...s, is_pledge: e.target.checked }))} />
+                    <span>Pledge</span>
+                  </label>
                   <button type="submit" className="wep-btn-primary"><Plus size={14} /> Add</button>
                 </form>
               )}
               <div className="wep-contribution-list">
-                {contributions.length === 0 ? <p className="wep-empty-inline">No contributions yet.</p> : contributions.map((c) => (
-                  <div key={c.id} className="wep-contribution-row">
-                    <span className="wep-contribution-member">{memberName(c.member_id)}</span>
-                    <span className="wep-contribution-amount">{formatKES(c.amount)}</span>
-                    <span className="wep-contribution-date">{format(parseISO(c.paid_at), "MMM d, yyyy")}</span>
-                    {c.note && <span className="wep-contribution-note">{c.note}</span>}
-                  </div>
-                ))}
+                {contributions.length === 0 ? <p className="wep-empty-inline">No contributions yet.</p> : contributions.map((c) => {
+                  const pledgeLabel = pledgeStatusLabel(c);
+                  return (
+                    <div key={c.id} className="wep-contribution-row">
+                      <span className="wep-contribution-member">{contributorDisplayName(c, memberName)}</span>
+                      <span className="wep-contribution-amount">
+                        {formatKES(c.amount)}
+                        {pledgeLabel && <em className="wep-pledge-tag">{pledgeLabel}</em>}
+                      </span>
+                      <span className="wep-contribution-date">{format(parseISO(c.paid_at), "MMM d, yyyy")}</span>
+                      {c.note && <span className="wep-contribution-note">{c.note}</span>}
+                      {canManage && c.is_pledge && outstandingAmount(c) > 0 && (
+                        <button className="wep-btn-icon" title="Record payment" onClick={() => receiveEventPledgePayment(c)}><HandCoins size={14} /></button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1035,7 +1224,16 @@ function EventDetailModal({
             <div className="wep-files">
               {canManage && (
                 <div className="wep-file-upload">
-                  <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => e.target.files?.[0] && uploadFile(e.target.files[0])} />
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) uploadFile(file);
+                      e.target.value = ""; // allow re-selecting the same file later
+                    }}
+                  />
                   <button className="wep-btn-secondary" onClick={() => fileInputRef.current?.click()}><Paperclip size={14} /> Upload file</button>
                 </div>
               )}

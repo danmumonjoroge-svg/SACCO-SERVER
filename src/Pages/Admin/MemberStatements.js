@@ -20,17 +20,40 @@ export default function AdminMemberStatement() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
-  const fetchStatement = async () => {
+  // Per-loan statement support: a member can hold several loan accounts
+  // (LN2026000001, LN2026000004, ...) that all post into the same
+  // general_ledger. "all" shows every ledger line for the member, same as
+  // before; picking a specific loan_id filters the statement down to just
+  // that loan's postings.
+  const [loans, setLoans] = useState([]);
+  const [selectedLoanId, setSelectedLoanId] = useState("all");
+
+  const fetchStatement = async (loanIdOverride) => {
 
     if (!memberNo) return alert("Enter member number");
 
     setLoading(true);
 
-    const { data: m } = await supabase
+    const activeLoanId = loanIdOverride !== undefined ? loanIdOverride : selectedLoanId;
+
+    const { data: m, error: memberError } = await supabase
       .from("members")
       .select("*")
       .eq("member_no", memberNo)
       .single();
+    if (memberError) {
+      console.warn("Member lookup failed:", memberError.message);
+    }
+
+    const { data: loanAccounts, error: loansError } = await supabase
+      .from("loan_account")
+      .select("*")
+      .eq("member_no", memberNo)
+      .order("disbursed_at", { ascending: false });
+    if (loansError) {
+      console.warn("Loan account lookup failed — has the loan_account table been created yet?", loansError.message);
+    }
+    setLoans(loanAccounts || []);
 
     let query = supabase
       .from("general_ledger")
@@ -38,10 +61,14 @@ export default function AdminMemberStatement() {
       .eq("member_no", memberNo)
       .order("date", { ascending: true });
 
+    if (activeLoanId !== "all") query = query.eq("loan_id", activeLoanId);
     if (fromDate) query = query.gte("date", fromDate);
     if (toDate) query = query.lte("date", toDate);
 
-    const { data: l } = await query;
+    const { data: l, error: ledgerError } = await query;
+    if (ledgerError) {
+      alert(`Failed to load ledger: ${ledgerError.message}`);
+    }
 
     const cleanLedger = (l || []).map(t => ({
       ...t,
@@ -53,6 +80,14 @@ export default function AdminMemberStatement() {
     setMember(m || null);
     setLedger(cleanLedger);
     setLoading(false);
+  };
+
+  const selectedLoan = selectedLoanId === "all" ? null : loans.find(l => l.loan_id === selectedLoanId);
+
+  const handleLoanFilterChange = (e) => {
+    const value = e.target.value;
+    setSelectedLoanId(value);
+    fetchStatement(value);
   };
 
   const summary = ledger.reduce((acc, t) => {
@@ -90,6 +125,7 @@ export default function AdminMemberStatement() {
   const downloadPDF = async () => {
     await generateStatementPDF(member, ledger, {
       summary,
+      loan: selectedLoan || null,
       generated_at: new Date().toISOString()
     });
   };
@@ -125,7 +161,18 @@ export default function AdminMemberStatement() {
         <input type="date" onChange={(e) => setFromDate(e.target.value)} />
         <input type="date" onChange={(e) => setToDate(e.target.value)} />
 
-        <button className="btn-blue" onClick={fetchStatement}>
+        {member && loans.length > 0 && (
+          <select value={selectedLoanId} onChange={handleLoanFilterChange}>
+            <option value="all">All accounts (savings + loans + shares)</option>
+            {loans.map((l) => (
+              <option key={l.loan_id} value={l.loan_id}>
+                {l.loan_id} — {l.loan_type || "Loan"} ({format(l.outstanding_balance)} outstanding)
+              </option>
+            ))}
+          </select>
+        )}
+
+        <button className="btn-blue" onClick={() => fetchStatement()}>
           {loading ? "Generating..." : "Generate Statement"}
         </button>
 
@@ -180,6 +227,37 @@ export default function AdminMemberStatement() {
 
           </div>
 
+        </div>
+      )}
+
+      {/* SELECTED LOAN ACCOUNT DETAIL */}
+      {selectedLoan && (
+        <div className="member-card">
+          <div className="member-left">
+            <div>
+              <h2>{selectedLoan.loan_id}</h2>
+              <p>{selectedLoan.loan_type || "Loan"} • {selectedLoan.status}</p>
+            </div>
+          </div>
+
+          <div className="member-right">
+            <div className="stat">
+              <span>Principal</span>
+              <b>{format(selectedLoan.principal)}</b>
+            </div>
+            <div className="stat">
+              <span>Outstanding Balance</span>
+              <b>{format(selectedLoan.outstanding_balance)}</b>
+            </div>
+            <div className="stat">
+              <span>Monthly Instalment</span>
+              <b>{format(selectedLoan.monthly_installment)}</b>
+            </div>
+            <div className="stat">
+              <span>Arrears (days)</span>
+              <b>{selectedLoan.arrears_days || 0}</b>
+            </div>
+          </div>
         </div>
       )}
 

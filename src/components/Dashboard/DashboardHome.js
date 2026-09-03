@@ -10,10 +10,9 @@ import { useNavigate, useOutletContext } from "react-router-dom";
 import { useAuth } from "../../Context/AuthContext";
 import { supabase } from "../../supabaseClient";
 import {
-  Wallet, Landmark, TrendingUp, Gem, User, ShieldAlert,
+  Wallet, Landmark, TrendingUp, Gem, User,
   ArrowDownLeft, ArrowUpRight, History, Bell, Settings,
-  PieChart, Send, FileText, Download, CheckCircle,
-  RefreshCw, X, ShieldCheck, Lock, LayoutDashboard, HelpCircle
+  PieChart, Send, FileText, X, ShieldCheck, Lock, LayoutDashboard
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -33,8 +32,13 @@ export default function DashboardHome() {
   const navigate                      = useNavigate();
   const { profile, logout }           = useAuth();
 
-  // Consume pre-computed ledger data from DashboardMain's Outlet context
-  const { memberNo, ledgerMetrics }   = useOutletContext();
+  // Consume pre-computed ledger data and the live notifications feed from
+  // DashboardMain's Outlet context — avoids a second, duplicate query.
+  const {
+    memberNo, ledgerMetrics,
+    notifications: sharedNotifications = [],
+    markNotificationsSeen,
+  } = useOutletContext();
 
   // Local UI states
   const [loading, setLoading]             = useState(true);
@@ -54,7 +58,6 @@ export default function DashboardHome() {
     members: 0, loans: 0, transactions: 0, notifications: 0,
   });
   const [recentTransactions, setRecentTransactions] = useState([]);
-  const [notifications, setNotifications]           = useState([]);
   const [announcements, setAnnouncements]           = useState([]);
   const [healthScore, setHealthScore]               = useState(0);
   const [profileCompletion, setProfileCompletion]   = useState(0);
@@ -65,15 +68,18 @@ export default function DashboardHome() {
   // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     const resolveRole = async () => {
-      // Step 1: Check for explicit admin/staff flags in localStorage
+      // Step 1 (optimistic only): a cached role flag can pre-paint the UI
+      // instantly so the layout doesn't jump once the real check resolves,
+      // but it is NEVER treated as authoritative — client-side storage is
+      // fully attacker-controlled, so trusting it outright would let anyone
+      // grant themselves the admin console just by editing localStorage.
+      // Every render still waits on the verified DB lookup below.
       try {
         const cachedStaff = localStorage.getItem("staff_session") || localStorage.getItem("admin_user");
         if (cachedStaff) {
           const parsed = JSON.parse(cachedStaff);
           if ((parsed.role === "admin" || parsed.role === "staff") && parsed.email === profile?.email) {
-            setUserRole(parsed.role);
-            setRoleLoading(false);
-            return;
+            setUserRole(parsed.role); // optimistic paint only — overwritten below
           }
         }
       } catch (e) {
@@ -81,6 +87,7 @@ export default function DashboardHome() {
       }
 
       if (!profile?.id && !profile?.member_no) {
+        setUserRole("member");
         setRoleLoading(false);
         return;
       }
@@ -195,16 +202,6 @@ export default function DashboardHome() {
     });
   }, [ledgerMetrics?.shares]);
 
-  const loadNotifications = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("notifications")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(8);
-    if (error) { console.error("[HOME] notifications:", error.message); return; }
-    setNotifications(data || []);
-  }, []);
-
   const loadSystemStats = useCallback(async () => {
     if (!isPrivileged) return;
     const [members, loans, transactions, notifs] = await Promise.all([
@@ -239,8 +236,7 @@ export default function DashboardHome() {
       try {
         await Promise.all([
           loadTransactions(profile.member_no),
-          loadNotifications(),
-          loadSystemStats(),        
+          loadSystemStats(),
         ]);
         loadAnnouncements();
       } catch (err) {
@@ -251,7 +247,7 @@ export default function DashboardHome() {
     };
 
     init();
-  }, [profile, roleLoading, loadTransactions, loadNotifications, loadSystemStats, loadAnnouncements]);
+  }, [profile, roleLoading, loadTransactions, loadSystemStats, loadAnnouncements]);
 
   const { savings = 0, loans = 0, shares = 0, interest = 0 } = ledgerMetrics || {};
 
@@ -497,13 +493,16 @@ export default function DashboardHome() {
             { icon: <FileText size={20} />,   label: "Statements", panel: "statement" },
             { icon: <User size={20} />,       label: "Profile",    panel: "profile"   },
             { icon: <Send size={20} />,       label: "Transfer",   panel: "transfer"  },
-            { icon: <Bell size={20} />,       label: "Alerts",     panel: "alerts"    },
+            {
+              icon: <Bell size={20} />, label: "Alerts", panel: "alerts",
+              onSelect: () => markNotificationsSeen && markNotificationsSeen(),
+            },
             { icon: <PieChart size={20} />,   label: "Analytics",  panel: "analytics" },
             { icon: <Settings size={20} />,   label: "Settings",   panel: "settings"  },
           ].map((item, idx) => (
             <button
               key={idx}
-              onClick={() => setActivePanel(item.panel)}
+              onClick={() => { setActivePanel(item.panel); item.onSelect && item.onSelect(); }}
               className="group bg-slate-50 hover:bg-green-50 border border-slate-100 hover:border-green-200 rounded-[22px] py-5 flex flex-col items-center justify-center gap-2.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             >
               <div className="text-slate-500 group-hover:text-green-600 transition-colors">{item.icon}</div>
@@ -588,7 +587,7 @@ export default function DashboardHome() {
           {activePanel === "statement" && <StatementPanel transactions={recentTransactions} />}
           {activePanel === "profile"   && <ProfilePanel   member={profile} completion={profileCompletion} />}
           {activePanel === "transfer"  && <TransferPanel  savingsBalance={savings} profile={profile} />}
-          {activePanel === "alerts"    && <AlertsPanel    notifications={notifications} />}
+          {activePanel === "alerts"    && <AlertsPanel    notifications={sharedNotifications} />}
           {activePanel === "analytics" && <AnalyticsPanel savings={savings} shares={shares} loans={loans} />}
           {activePanel === "settings"  && <SettingsPanel  profile={profile} />}
         </SlidePanel>

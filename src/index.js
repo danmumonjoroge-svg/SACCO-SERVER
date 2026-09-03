@@ -10,6 +10,7 @@ import { BrowserRouter } from "react-router-dom";
 
 import App from "./App";
 import { AuthProvider } from "./Context/AuthContext";
+import { ChamaProvider } from "./chama-erp-advanced/ChamaContext";
 import "./index.css";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
@@ -17,7 +18,12 @@ const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <BrowserRouter>
     <AuthProvider>
-      <App />
+      {/* ChamaProvider now wraps the whole app, not just /chama — the
+          unified login screen (UnifiedLogin.js, at /login) needs
+          useChama() for its phone-number login path. */}
+      <ChamaProvider>
+        <App />
+      </ChamaProvider>
     </AuthProvider>
   </BrowserRouter>
 );

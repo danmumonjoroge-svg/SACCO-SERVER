@@ -6,8 +6,8 @@
 //      - If NO  → Attempt clean signUp with their email + chosen password
 //   3. Mark password_set = "true", update profiles, and guide to link verification
 
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Eye, EyeOff, Shield, Loader2, AlertCircle, CheckCircle,
   Lock, User, ArrowLeft, RefreshCcw, CreditCard,
@@ -73,7 +73,19 @@ const PasswordInput = ({ value, onChange, placeholder, show, onToggle, icon: Ico
 // ─────────────────────────────────────────────
 export default function AuthPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [mode, setMode] = useState("login");
+
+  // If UnifiedLogin.js (the primary /login screen) detected this member
+  // hasn't set a password yet, it hands off here with state instead of
+  // making them retype their member number.
+  useEffect(() => {
+    if (location.state?.mode === "setup" && location.state?.memberNo) {
+      setSetupMemberNo(location.state.memberNo);
+      setMode("setup");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Login States
   const [memberNo, setMemberNo] = useState("");

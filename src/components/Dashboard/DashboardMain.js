@@ -35,6 +35,17 @@ function Sparkline({ values = [], color = "#10b981", height = 28 }) {
   );
 }
 
+// ── Responsive viewport width (avoids stale window.innerWidth reads on resize) ──
+function useViewportWidth() {
+  const [width, setWidth] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1280));
+  useEffect(() => {
+    const onResize = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return width;
+}
+
 // ── Animated count-up number ─────────────────────────────────────────────────
 function CountUp({ value, prefix = "KES ", duration = 900 }) {
   const [display, setDisplay] = useState(0);
@@ -55,9 +66,23 @@ export default function DashboardMain() {
   const location = useLocation();
   const { profile, logout } = useAuth();
 
+  const viewportWidth = useViewportWidth();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [notifications, setNotifications] = useState([]);
+  const [lastSeenNotifAt, setLastSeenNotifAt] = useState(() => {
+    try { return localStorage.getItem("umova-notif-last-seen") || null; } catch { return null; }
+  });
+  const unreadNotifications = useMemo(() => {
+    if (!lastSeenNotifAt) return notifications.length;
+    return notifications.filter((n) => new Date(n.created_at) > new Date(lastSeenNotifAt)).length;
+  }, [notifications, lastSeenNotifAt]);
+  const markNotificationsSeen = useCallback(() => {
+    const now = new Date().toISOString();
+    setLastSeenNotifAt(now);
+    try { localStorage.setItem("umova-notif-last-seen", now); } catch { /* storage unavailable — badge just won't persist across reloads */ }
+  }, []);
   const [collapsed, setCollapsed] = useState(false);
+  const [notifPanelOpen, setNotifPanelOpen] = useState(false);
   const [ledgerMetrics, setLedgerMetrics] = useState({
     savings: 0, loans: 0, shares: 0, interest: 0,
   });
@@ -126,9 +151,44 @@ export default function DashboardMain() {
     return () => supabase.removeChannel(sub);
   }, [profile?.member_no, profile?.memberNo, computeLedgerBalances]);
 
+  // Notifications feed — powers the topbar bell badge and is shared with
+  // routed pages via Outlet context so they don't have to re-query it.
+  const loadNotifications = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      setNotifications(data || []);
+    } catch (err) {
+      console.error("[NOTIFICATIONS]", err.message);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadNotifications();
+    const sub = supabase
+      .channel("dashboard-notifications")
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications" },
+        (payload) => setNotifications((prev) => [payload.new, ...prev].slice(0, 20))
+      )
+      .subscribe();
+    return () => supabase.removeChannel(sub);
+  }, [loadNotifications]);
+
   const handleLogout = async () => {
     try { await logout(); } catch (err) { console.error(err); }
   };
+
+  useEffect(() => {
+    if (!notifPanelOpen) return;
+    const onKeyDown = (e) => { if (e.key === "Escape") setNotifPanelOpen(false); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [notifPanelOpen]);
 
   const navigation = [
     { label: "Dashboard",     icon: LayoutDashboard, path: "/member/dashboard",  suffix: null },
@@ -328,9 +388,9 @@ export default function DashboardMain() {
             transition: "width 0.25s ease, min-width 0.25s ease",
             overflow: "hidden",
             zIndex: 50,
-            position: window.innerWidth < 1280 ? "fixed" : "relative",
+            position: viewportWidth < 1280 ? "fixed" : "relative",
             top: 0, bottom: 0, left: 0,
-            transform: window.innerWidth < 1280
+            transform: viewportWidth < 1280
               ? mobileSidebarOpen ? "translateX(0)" : "translateX(-100%)"
               : "translateX(0)",
           }}
@@ -414,14 +474,22 @@ export default function DashboardMain() {
                     title={collapsed ? item.label : undefined}
                     style={collapsed ? { justifyContent: "center", padding: "10px 0" } : {}}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: collapsed ? 0 : 11, flexShrink: 0 }}>
-                      <Icon size={18} style={{ flexShrink: 0 }} />
-                      {!collapsed && <span>{item.label}</span>}
-                    </div>
-                    {!collapsed && item.suffix && (
-                      <span className={`pill-badge ${({ isActive }) => isActive ? "active-item" : ""} ${item.trend === "down" && ledgerMetrics.loans > 0 ? "warn" : ""}`}>
-                        {item.suffix}
-                      </span>
+                    {({ isActive }) => (
+                      <>
+                        <div style={{ display: "flex", alignItems: "center", gap: collapsed ? 0 : 11, flexShrink: 0 }}>
+                          <Icon size={18} style={{ flexShrink: 0 }} />
+                          {!collapsed && <span>{item.label}</span>}
+                        </div>
+                        {!collapsed && item.suffix && (
+                          <span
+                            className={`pill-badge ${isActive ? "active-item" : ""} ${
+                              item.trend === "down" && ledgerMetrics.loans > 0 ? "warn" : ""
+                            }`}
+                          >
+                            {item.suffix}
+                          </span>
+                        )}
+                      </>
                     )}
                   </NavLink>
                 );
@@ -529,10 +597,39 @@ export default function DashboardMain() {
               )}
 
               {/* Notification bell */}
-              <div style={{ position: "relative", padding: 8, cursor: "pointer", color: "#94a3b8", borderRadius: 10, border: "1px solid #f1f5f9", background: "#fafafa" }}>
-                <Bell size={18} />
-                {unreadNotifications > 0 && (
-                  <span className="notif-badge">{unreadNotifications}</span>
+              <div style={{ position: "relative" }}>
+                <button
+                  onClick={() => {
+                    setNotifPanelOpen((v) => !v);
+                    if (!notifPanelOpen) markNotificationsSeen();
+                  }}
+                  aria-label="Notifications"
+                  aria-expanded={notifPanelOpen}
+                  style={{ position: "relative", padding: 8, cursor: "pointer", color: "#94a3b8", borderRadius: 10, border: "1px solid #f1f5f9", background: "#fafafa" }}
+                >
+                  <Bell size={18} />
+                  {unreadNotifications > 0 && (
+                    <span className="notif-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span>
+                  )}
+                </button>
+
+                {notifPanelOpen && (
+                  <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", width: 300, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, boxShadow: "0 12px 36px rgba(15,23,42,0.14)", zIndex: 60, overflow: "hidden" }}>
+                    <div style={{ padding: "12px 16px", borderBottom: "1px solid #f1f5f9", fontWeight: 800, fontSize: 13, color: "#0f172a" }}>
+                      Notifications
+                    </div>
+                    <div style={{ maxHeight: 280, overflowY: "auto" }}>
+                      {notifications.length === 0 && (
+                        <p style={{ textAlign: "center", color: "#94a3b8", fontSize: 12, padding: "24px 16px" }}>No notifications yet.</p>
+                      )}
+                      {notifications.map((n, i) => (
+                        <div key={n.id || i} style={{ padding: "10px 16px", borderBottom: "1px solid #f8fafc", fontSize: 12.5, color: "#334155" }}>
+                          <div style={{ fontWeight: 700, color: "#0f172a" }}>{n.title || "Notification"}</div>
+                          <div style={{ color: "#64748b", marginTop: 2 }}>{n.message || n.body}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
 
@@ -590,7 +687,13 @@ export default function DashboardMain() {
 
             {/* Routed page content */}
             <div className="page-fade-in">
-              <Outlet context={{ memberNo: profile?.member_no || profile?.memberNo, ledgerMetrics }} />
+              <Outlet context={{
+                memberNo: profile?.member_no || profile?.memberNo,
+                ledgerMetrics,
+                notifications,
+                unreadNotifications,
+                markNotificationsSeen,
+              }} />
             </div>
           </main>
         </div>

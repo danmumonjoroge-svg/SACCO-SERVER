@@ -1,38 +1,59 @@
 import { useState } from "react";
-import { Link, Outlet } from "react-router-dom";
-import { Sun, Moon } from "lucide-react";
+import { Link, Outlet, useLocation } from "react-router-dom";
+import { Sun, Moon, LayoutDashboard, Users, Landmark, FileText } from "lucide-react";
+import "./Dashboard.css";
+
+const NAV_ITEMS = [
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/members", label: "Members", icon: Users },
+  { to: "/loans", label: "Loans", icon: Landmark },
+  { to: "/statements", label: "Statements", icon: FileText },
+];
 
 export default function Layout() {
   const [dark, setDark] = useState(false);
+  const location = useLocation();
 
-  const toggleTheme = () => {
-    setDark(!dark);
-    document.documentElement.classList.toggle("dark");
-  };
+  const toggleTheme = () => setDark((prev) => !prev);
 
   return (
-    <div className={`flex min-h-screen ${dark ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-900"}`}>
-      
+    <div className={`admin-layout ${dark ? "dark" : ""}`}>
       {/* Sidebar */}
-      <aside className="w-64 bg-blue-700 text-white p-6 flex flex-col">
-        <h1 className="text-2xl font-bold mb-6">SACCO</h1>
-        <nav className="flex flex-col gap-3">
-          <Link to="/dashboard" className="hover:bg-blue-600 p-2 rounded">Dashboard</Link>
-          <Link to="/members" className="hover:bg-blue-600 p-2 rounded">Members</Link>
-          <Link to="/loans" className="hover:bg-blue-600 p-2 rounded">Loans</Link>
-          <Link to="/statements" className="hover:bg-blue-600 p-2 rounded">Statements</Link>
+      <aside className="sidebar">
+        <div className="logo">
+          <span className="logo-mark">U</span>
+          <h2>Umova SACCO</h2>
+        </div>
+
+        <nav>
+          {NAV_ITEMS.map(({ to, label, icon: Icon }) => {
+            const isActive = location.pathname.startsWith(to);
+            return (
+              <Link key={to} to={to} className={isActive ? "active" : ""}>
+                <Icon size={16} />
+                {label}
+              </Link>
+            );
+          })}
         </nav>
 
-        <button
-          onClick={toggleTheme}
-          className="mt-auto bg-white text-blue-700 px-3 py-2 rounded flex items-center gap-2 justify-center"
-        >
-          {dark ? <Sun size={16} /> : <Moon size={16} />} {dark ? "Light" : "Dark"}
+        <button className="theme-toggle" onClick={toggleTheme}>
+          {dark ? <Sun size={16} /> : <Moon size={16} />}
+          {dark ? "Light mode" : "Dark mode"}
         </button>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-6">
+      <main className="main-content">
+        <div className="topbar">
+          <div className="topbar-title">
+            {NAV_ITEMS.find((n) => location.pathname.startsWith(n.to))?.label || "Dashboard"}
+          </div>
+          <div className="user-chip">
+            <div className="avatar">AM</div>
+          </div>
+        </div>
+
         <Outlet />
       </main>
     </div>

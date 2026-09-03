@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "../../supabaseClient";
 import { useChama } from "../ChamaContext";
-import { TrendingUp, TrendingDown, Award, AlertTriangle, Loader2, Lock, CalendarDays } from "lucide-react";
+import { TrendingUp, TrendingDown, Award, AlertTriangle, Loader2, Lock, CalendarDays, AlertCircle } from "lucide-react";
+import { formatKES } from "./welfareFormat";
 import "./WelfareInsightsReport.css";
 
 // -----------------------------------------------------------------------------
@@ -13,8 +14,6 @@ import "./WelfareInsightsReport.css";
 // comparison that would be uncomfortable if broadly visible to members.
 // -----------------------------------------------------------------------------
 
-function formatKES(v) { return `KES ${Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`; }
-
 export default function WelfareInsightsReport({ chamaId: chamaIdProp }) {
   const { chama, hasRole } = useChama();
   const chamaId = chamaIdProp || chama?.id;
@@ -25,16 +24,21 @@ export default function WelfareInsightsReport({ chamaId: chamaIdProp }) {
   const [events, setEvents] = useState([]);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const load = useCallback(async () => {
     if (!chamaId) return;
     setLoading(true);
+    setError(null);
     const [casesRes, contribRes, eventsRes, membersRes] = await Promise.all([
       supabase.from("welfare_cases").select("*").eq("chama_id", chamaId),
       supabase.from("welfare_contributions").select("*").eq("chama_id", chamaId).eq("status", "Approved"),
       supabase.from("welfare_events").select("*").eq("chama_id", chamaId),
-      supabase.from("chama_members").select("id,name").eq("chama_id", chamaId),
+      // Only active members are counted so ex-members don't skew "non-contributors".
+      supabase.from("chama_members").select("id,name").eq("chama_id", chamaId).eq("status", "active"),
     ]);
+    const firstError = casesRes.error || contribRes.error || eventsRes.error || membersRes.error;
+    if (firstError) setError(firstError.message);
     setCases(casesRes.data || []);
     setContributions(contribRes.data || []);
     setEvents(eventsRes.data || []);
@@ -55,7 +59,10 @@ export default function WelfareInsightsReport({ chamaId: chamaIdProp }) {
   }, [cases, contributions]);
 
   const highCases = caseStats.slice(0, 5);
-  const lowCases = [...caseStats].filter((c) => c.status === "closed" || c.contributorCount > 0).sort((a, b) => a.total - b.total).slice(0, 5);
+  // Previously this excluded open cases with zero contributions, which hid the
+  // most useful signal (a stalled, unfunded case) from the "lowest" panel.
+  // Now every case is eligible; stalled cases naturally sort to the top.
+  const lowCases = [...caseStats].sort((a, b) => a.total - b.total).slice(0, 5);
 
   const memberStats = useMemo(() => {
     const byMember = {};
@@ -96,6 +103,10 @@ export default function WelfareInsightsReport({ chamaId: chamaIdProp }) {
         <h2>Welfare Insights</h2>
         <p>Participation patterns across cases and members.</p>
       </div>
+
+      {error && (
+        <div className="wir-error"><AlertCircle size={14} /> Couldn't load some data: {error}</div>
+      )}
 
       <div className="wir-summary-strip">
         <div><span>Total raised</span><strong>{formatKES(contributions.reduce((s, c) => s + Number(c.amount), 0))}</strong></div>

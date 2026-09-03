@@ -1220,3 +1220,16 @@ body {
     padding: 32px 40px;
   }
 }
+
+/* ──────────────────────────────────────────────────────────────
+   ACCESSIBILITY
+   ────────────────────────────────────────────────────────────── */
+.sidebar a:focus-visible,
+.sidebar button:focus-visible,
+.appbar button:focus-visible,
+.stage__viewport button:focus-visible,
+.stage__viewport a:focus-visible,
+.erp-input:focus-visible {
+  outline: 2px solid var(--green-400);
+  outline-offset: 2px;
+}

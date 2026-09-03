@@ -16,7 +16,7 @@ import React, {
 } from "react";
 import { supabase } from "../supabaseClient";
 
-const STAFF_ROLES = ["staff", "admin", "manager", "superadmin", "auditor", "teller"];
+export const STAFF_ROLES = ["staff", "admin", "manager", "superadmin", "auditor", "teller"];
 
 const AuthContext = createContext({
   user:         null,

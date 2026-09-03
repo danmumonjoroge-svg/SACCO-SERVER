@@ -257,3 +257,115 @@
     width: 90%;
   }
 }
+/* ================= ENHANCED NAV (PublicHome) ================= */
+.nav-bar {
+  transition: box-shadow .25s ease, padding .25s ease;
+}
+.nav-bar--scrolled {
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  padding: 10px 28px;
+}
+.nav-bar .brand {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 18px;
+}
+.nav-links--desktop { display: flex; }
+.nav-links a {
+  text-decoration: none;
+  font-weight: 500;
+  opacity: 0.9;
+  cursor: pointer;
+}
+.nav-links a:hover { opacity: 1; }
+.nav-btn {
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: none;
+  background: #10b981;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .2s ease, background .2s ease;
+}
+.nav-btn:hover { background: #0ea371; transform: translateY(-1px); }
+.nav-btn--full { width: 100%; margin-top: 8px; }
+
+.nav-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(255,255,255,.12);
+  border: none;
+  cursor: pointer;
+}
+.nav-toggle span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: white;
+  margin: 0 auto;
+  border-radius: 2px;
+  transition: transform .25s ease, opacity .2s ease;
+}
+.nav-toggle--open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.nav-toggle--open span:nth-child(2) { opacity: 0; }
+.nav-toggle--open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+.nav-mobile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 0;
+  overflow: hidden;
+  background: #0b5d3b;
+  padding: 0 24px;
+  transition: max-height .3s ease, padding .3s ease;
+}
+.nav-mobile--open { max-height: 260px; padding: 14px 24px 20px; }
+.nav-mobile a {
+  color: white;
+  text-decoration: none;
+  font-weight: 600;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,.12);
+}
+
+/* ================= KPI ENHANCEMENTS ================= */
+.kpi-card {
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+.kpi-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 24px rgba(16, 185, 129, 0.2);
+}
+.kpi-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #0b5d3b;
+}
+.kpi-label {
+  font-size: 12.5px;
+  color: #64748b;
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+/* ================= FEATURE CARDS ================= */
+.feature-card {
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+.feature-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 26px rgba(0,0,0,0.12);
+}
+
+/* ================= RESPONSIVE ================= */
+@media (max-width: 768px) {
+  .nav-links--desktop { display: none; }
+  .nav-toggle { display: flex; }
+}

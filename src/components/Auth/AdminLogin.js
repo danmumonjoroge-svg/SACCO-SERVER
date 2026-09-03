@@ -5,7 +5,7 @@
 // ============================================================================
 
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Eye,
   EyeOff,
@@ -18,11 +18,16 @@ import {
   UserCog,
 } from "lucide-react";
 
-import { supabase } from "../../supabaseClient";
+import { resolveStaffLogin } from "./loginHelpers";
 
 export default function AdminLogin() {
 
   const navigate = useNavigate();
+  const location = useLocation();
+  // Set by AdminLoginRoute's <Navigate state={{from: ...}}/> when a staff-
+  // only page (e.g. /admin/pos) redirected here, or by a login button that
+  // wants to land somewhere other than the default dashboard.
+  const from = location.state?.from || "/admin/dashboard";
 
   const [userNo, setUserNo] = useState("");
   const [password, setPassword] = useState("");
@@ -58,165 +63,14 @@ export default function AdminLogin() {
 
     try {
 
-      // ==========================================================
-      // LOOKUP USER
-      // ==========================================================
+      const result = await resolveStaffLogin(userNo, password);
 
-      const {
-        data: userRecord,
-        error: userError,
-      } = await supabase
-        .from("users")
-        .select(`
-          id,
-          member_no,
-          name,
-          email,
-          role,
-          status,
-          auth_user_id
-        `)
-        .eq(
-          "member_no",
-          userNo.trim().toUpperCase()
-        )
-        .maybeSingle();
-
-      if (userError || !userRecord) {
-
-        setError(
-          "Member Number not found."
-        );
-
+      if (!result.ok) {
+        setError(result.message);
         return;
       }
 
-      // ==========================================================
-      // STATUS CHECK
-      // ==========================================================
-
-      if (
-        userRecord.status === "inactive"
-      ) {
-
-        setError(
-          "Account is inactive."
-        );
-
-        return;
-      }
-
-      if (
-        userRecord.status === "suspended"
-      ) {
-
-        setError(
-          "Account is suspended."
-        );
-
-        return;
-      }
-
-      // ==========================================================
-      // EMAIL CHECK
-      // ==========================================================
-
-      if (!userRecord.email) {
-
-        setError(
-          "No email linked to this user."
-        );
-
-        return;
-      }
-
-      // ==========================================================
-      // AUTH LOGIN
-      // ==========================================================
-
-      const {
-        data,
-        error: loginError,
-      } =
-        await supabase.auth.signInWithPassword({
-
-          email: userRecord.email,
-          password,
-        });
-
-      if (loginError) {
-
-        if (
-          loginError.message
-            .toLowerCase()
-            .includes(
-              "invalid login credentials"
-            )
-        ) {
-
-          setError(
-            "Invalid password."
-          );
-
-        } else {
-
-          setError(
-            loginError.message
-          );
-        }
-
-        return;
-      }
-
-      // ==========================================================
-      // ROLE CHECK
-      // ==========================================================
-
-      const allowedRoles = [
-
-        "admin",
-        "staff",
-        "manager",
-        "supervisor",
-        "credit",
-        "finance",
-        "ceo",
-      ];
-
-      if (
-        !allowedRoles.includes(
-          (userRecord.role || "")
-            .toLowerCase()
-        )
-      ) {
-
-        await supabase.auth.signOut();
-
-        setError(
-          "You do not have dashboard access."
-        );
-
-        return;
-      }
-
-      // ==========================================================
-      // AUDIT LOG
-      // ==========================================================
-
-      try {
-
-        await supabase
-          .from("audit_logs")
-          .insert([
-            {
-              user_id: data.user.id,
-              action: "ADMIN_LOGIN",
-              role: userRecord.role,
-              email: userRecord.email,
-            },
-          ]);
-
-      } catch {}
+      const { userRecord } = result;
 
       // ==========================================================
       // SUCCESS
@@ -229,7 +83,7 @@ export default function AdminLogin() {
       setTimeout(() => {
 
         navigate(
-          "/admin",
+          from,
           {
             replace: true,
           }
