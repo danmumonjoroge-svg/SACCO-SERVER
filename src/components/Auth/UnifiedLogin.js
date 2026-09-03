@@ -19,6 +19,12 @@
 // expired license), we hand off to /chama and let AuthGate render the
 // right sub-view — this file never renders ChamaSelector/LicenseBlocked
 // itself, to avoid having two places that decide which of those to show.
+//
+// Face ID / Fingerprint: webauthnHelpers.loginWithPasskey() looks up
+// whatever identifier is currently typed, and if that account has a
+// registered passkey, runs the platform authenticator prompt and signs
+// in directly — no password needed. If no passkey is registered for
+// that identifier, it just falls back silently to the password field.
 // ============================================================================
 
 import React, { useState, useEffect, useRef } from "react";
@@ -36,6 +42,7 @@ import {
 
 import { useChama } from "../../chama-erp-advanced/ChamaContext";
 import { resolveStaffLogin, resolveMemberLogin, looksLikePhoneNumber } from "./loginHelpers";
+import { loginWithPasskey, passkeysSupported } from "./webauthnHelpers";
 
 export default function UnifiedLogin() {
   const navigate = useNavigate();
@@ -50,6 +57,7 @@ export default function UnifiedLogin() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -137,6 +145,39 @@ export default function UnifiedLogin() {
       console.error(err);
       setError("Unexpected authentication error.");
       setBusy(false);
+    }
+  };
+
+  const handlePasskeyLogin = async () => {
+    setError("");
+    setSuccess("");
+
+    const trimmed = identifier.trim();
+    if (!trimmed) {
+      setError("Enter your member number or user number first, then use Face ID / Fingerprint.");
+      return;
+    }
+    if (looksLikePhoneNumber(trimmed)) {
+      setError("Face ID / Fingerprint isn't available for Chama accounts yet — use your password.");
+      return;
+    }
+
+    setPasskeyBusy(true);
+    try {
+      const result = await loginWithPasskey(trimmed);
+
+      if (!result.usedPasskey) {
+        setError("No Face ID / Fingerprint is set up for this account yet. Enter your password to sign in, or add a passkey afterwards in Settings.");
+        return;
+      }
+
+      setSuccess("Signed in with Face ID / Fingerprint.");
+      setTimeout(() => navigate(from, { replace: true }), 500);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "Face ID / Fingerprint sign-in failed. Try your password instead.");
+    } finally {
+      setPasskeyBusy(false);
     }
   };
 
@@ -231,18 +272,21 @@ export default function UnifiedLogin() {
               )}
             </button>
 
-            {/* Passkey / fingerprint login lands here in Phase 2 — needs a
-                webauthn_credentials table + Edge Functions for the
-                register/verify ceremony before this button does anything. */}
-            <button
-              type="button"
-              disabled
-              title="Coming soon"
-              className="w-full h-12 border-2 border-dashed border-slate-200 text-slate-400 rounded-2xl font-semibold flex items-center justify-center gap-2 cursor-not-allowed"
-            >
-              <Fingerprint size={18} />
-              Use Face ID / Fingerprint (coming soon)
-            </button>
+            {passkeysSupported() && (
+              <button
+                type="button"
+                disabled={passkeyBusy}
+                onClick={handlePasskeyLogin}
+                className="w-full h-12 border-2 border-green-700 text-green-800 hover:bg-green-50 disabled:opacity-60 rounded-2xl font-semibold flex items-center justify-center gap-2"
+              >
+                {passkeyBusy ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : (
+                  <Fingerprint size={18} />
+                )}
+                {passkeyBusy ? "Verifying..." : "Use Face ID / Fingerprint"}
+              </button>
+            )}
           </form>
 
           <div className="mt-6 text-center text-sm text-slate-500">
@@ -272,6 +316,17 @@ export default function UnifiedLogin() {
               className="text-green-700 font-semibold hover:underline"
             >
               register a new chama
+            </button>
+          </div>
+
+          <div className="mt-3 text-center text-xs text-slate-400">
+            New staff member?{" "}
+            <button
+              type="button"
+              onClick={() => navigate("/register-pos")}
+              className="text-green-700 font-semibold hover:underline"
+            >
+              Register for POS access
             </button>
           </div>
         </div>

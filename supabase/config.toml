@@ -405,6 +405,33 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 [functions.interest-engine]
 enabled = true
 verify_jwt = true
+
+# Requires an existing logged-in session (adding a passkey to an account
+# you're already signed into).
+[functions.webauthn-register-options]
+enabled = true
+verify_jwt = true
+
+[functions.webauthn-register-verify]
+enabled = true
+verify_jwt = true
+
+# Called BEFORE the user has a session — this IS the login step — so the
+# gateway must not require a JWT. The function verifies identity itself
+# via the WebAuthn challenge/assertion instead.
+[functions.webauthn-auth-options]
+enabled = true
+verify_jwt = false
+
+[functions.webauthn-auth-verify]
+enabled = true
+verify_jwt = false
+
+# Requires an existing logged-in admin/superadmin/manager session; the
+# function itself re-checks the caller's role on top of this.
+[functions.approve-pos-registration]
+enabled = true
+verify_jwt = true
 import_map = "./functions/interest-engine/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
